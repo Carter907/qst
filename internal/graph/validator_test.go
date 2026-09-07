@@ -320,3 +320,123 @@ func TestValidateGraphRelaxedSubguides(t *testing.T) {
 		t.Errorf("ValidateGraph() with relaxed_subguides=true returned error = %v, want no error", err)
 	}
 }
+
+func TestValidateGraphStrictCoverage(t *testing.T) {
+	mockConfig := Manifest{
+		Scopes: []string{"definition", "description", "explanation", "lesson"},
+		Adherences: []string{"vague", "introductory", "detailed", "strict"},
+		StrictCoverage: true,
+	}
+
+	tests := []struct {
+		name    string
+		guides  map[string]Guide
+		wantErr bool
+	}{
+		{
+			name: "full coverage valid",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true, 
+					LineCount: 10,
+					Metadata: GuideMetadata{
+						Scope:     "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1-5"},
+							{Guide: "guide3", Adherence: "detailed", Segment: "6-10"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+				"guide3": {ID: "guide3", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing coverage at start",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true, 
+					LineCount: 10,
+					Metadata: GuideMetadata{
+						Scope:     "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "2-10"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: true, // missing line 1
+		},
+		{
+			name: "missing coverage in middle",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true, 
+					LineCount: 10,
+					Metadata: GuideMetadata{
+						Scope:     "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1-4"},
+							{Guide: "guide3", Adherence: "detailed", Segment: "6-10"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+				"guide3": {ID: "guide3", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: true, // missing line 5
+		},
+		{
+			name: "missing coverage at end",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true, 
+					LineCount: 10,
+					Metadata: GuideMetadata{
+						Scope:     "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1-9"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: true, // missing line 10
+		},
+		{
+			name: "overlapping segments",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true, 
+					LineCount: 10,
+					Metadata: GuideMetadata{
+						Scope:     "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1-5"},
+							{Guide: "guide3", Adherence: "detailed", Segment: "5-10"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+				"guide3": {ID: "guide3", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: true, // overlaps at 5
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateGraph(tt.guides, mockConfig)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateGraph() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

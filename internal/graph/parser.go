@@ -92,7 +92,7 @@ func ParseGuide(path string) (Guide, error) {
 		ID:         id,
 		Path:       path,
 		Metadata:   meta,
-		LineCount:  len(lines),
+		LineCount:  len(lines) - (frontMatterEnd + 1),
 		HasContent: hasContent,
 	}, nil
 }
