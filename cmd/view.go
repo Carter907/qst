@@ -47,26 +47,28 @@ func generateMermaid(guides map[string]graph.Guide) string {
 	}
 	sort.Strings(ids)
 
+	r := strings.NewReplacer("-", "_", " ", "_")
+
 	// Declare all nodes first (ensures nodes with no connections are still visible)
 	for _, id := range ids {
-		cleanID := strings.ReplaceAll(id, "-", "_")
+		cleanID := strings.ToLower(r.Replace(id))
 		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", cleanID, id)
 	}
 
 	// Declare all edges
 	for _, id := range ids {
 		guide := guides[id]
-		cleanID := strings.ReplaceAll(id, "-", "_")
+		cleanID := strings.ToLower(r.Replace(id))
 
 		// Prerequisites (Solid links: Prereq -> Current)
 		for _, prereq := range guide.Metadata.Prerequisites {
-			cleanPrereq := strings.ReplaceAll(prereq, "-", "_")
+			cleanPrereq := strings.ToLower(r.Replace(prereq))
 			fmt.Fprintf(&sb, "    %s --> %s\n", cleanPrereq, cleanID)
 		}
 
 		// Subguides (Dotted links: Current -> Sub)
 		for _, sub := range guide.Metadata.SubGuides {
-			cleanSub := strings.ReplaceAll(sub.Guide, "-", "_")
+			cleanSub := strings.ToLower(r.Replace(sub.Guide))
 			fmt.Fprintf(&sb, "    %s -.-> %s\n", cleanID, cleanSub)
 		}
 	}
