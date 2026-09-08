@@ -9,11 +9,10 @@ qst list [directory] [flags]
 ### Options
 
 ```
-      --clarity string   Filter by clarity
-  -d, --dir string       Knowledge graph directory (default ".")
-  -h, --help             help for list
-      --scope string     Filter by scope
-      --tags strings     Filter by tags (comma separated)
+  -d, --dir string     Knowledge graph directory (default ".")
+  -h, --help           help for list
+      --scope string   Filter by scope
+      --tags strings   Filter by tags (comma separated)
 ```
 
 ### SEE ALSO
