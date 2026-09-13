@@ -7,17 +7,23 @@ Knowledge graphs are archived into `.kng` files which are zip archives containin
 These guides require a YAML frontmatter that carries their metadata. When formatting these markdown files you should make sure all fields specified below are included.
 
 > [!NOTE]
-> When creating metadata about language itself, it's important to realize that we are rubbing up against philosophical and linguistic barriers. There is no universally accepted way of measuring "scope" in a piece of text. Therefore, defining these terms qualitatively gives us some breathing room for the fuzziness in their definitions.
+> When creating metadata about language itself, it's important to realize that we are rubbing up against philosophical and linguistic barriers. There is no universally accepted way of measuring "scope" in a piece of text. Therefore, defining these terms qualitatively gives us some breathing room for their inherent fuzziness.
 
 ### Properties
 
 #### `prerequisites`
 
-A list of required guides. **Strict Rule:** Horizontal edges in the knowledge graph can *only* exist between guides of the exact identical `scope` (horizontal relationship).
+A list of required guides.
+
+**Strict Rule:** Horizontal edges in the knowledge graph can *only* exist between guides of the exact identical `scope` (horizontal relationship).
 
 #### `sub_guides`
 
-An optional list of sub-guide relation objects. **Strict Rule:** These must be exactly one scope level smaller than the current guide, unless `relaxed_subguides: true` is set in the `manifest.yaml` which allows any smaller scope. Each object must contain:
+An optional list of sub-guide relation objects.
+
+>[!NOTE] These sub-guides must be exactly one scope level smaller than the current guide, unless `relaxed_subguides: true` is set in the `manifest.yaml` which allows any smaller scope.
+
+Each object must contain:
 - `guide`: The name of the sub-guide being referenced.
 - `adherence`: The specific constraint applied to this sub-guide reference, dictating exactly how the sub-guide must be tangibly represented and rewritten inside the body text (checked against the `adherences` list in `manifest.yaml`). Common examples:
   - **strict**: The author must explicitly use the exact or near-exact content of the sub-guide within the text.
