@@ -22,16 +22,14 @@ scopes:
   - description
   - explanation
   - lesson
-clarities:
-  - strict
-  - detailed
-  - introductory
-  - vague
 adherences:
   - strict
   - detailed
   - introductory
   - vague
+relaxed_subguides: false
+require_subguides: true
+strict_coverage: true
 tours:
   - name: Tour 1
     guides:
@@ -45,7 +43,7 @@ tours:
 ### 2. Add your first guides
 
 ```sh
-qst add "Understanding Exponents" --scope lesson --clarity introductory --tags math,algebra
+qst add "Understanding Exponents" --scope lesson --tags math,algebra
 ```
 
 This command creates a markdown file with populated front-matter. You can also specify prerequisites if you already know the structure you're going for.

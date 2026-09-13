@@ -64,6 +64,28 @@ var renameCmd = &cobra.Command{
 			}
 		}
 
+		// Update references in manifest.yaml tours
+		config, err := graph.ParseConfig(renameDir)
+		if err == nil {
+			configUpdated := false
+			for i, tour := range config.Tours {
+				for j, g := range tour.Guides {
+					if g == oldName {
+						config.Tours[i].Guides[j] = newName
+						configUpdated = true
+						updatedCount++
+					}
+				}
+			}
+			if configUpdated {
+				err = graph.UpdateConfig(renameDir, config)
+				if err != nil {
+					fmt.Printf("Failed to update manifest.yaml: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		}
+
 		// Finally, rename the file itself
 		oldPath := guides[oldName].Path
 		newPath := filepath.Join(filepath.Dir(oldPath), newName+".md")

@@ -113,6 +113,17 @@ func ParseConfig(dirPath string) (Manifest, error) {
 	return config, nil
 }
 
+// UpdateConfig writes the manifest.yaml configuration file back to the specified directory.
+func UpdateConfig(dirPath string, config Manifest) error {
+	configPath := filepath.Join(dirPath, "manifest.yaml")
+	content, err := yaml.Marshal(&config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal manifest.yaml: %w", err)
+	}
+
+	return os.WriteFile(configPath, content, 0644)
+}
+
 // UpdateGuideMetadata replaces the YAML frontmatter in the given file while preserving the rest of its content.
 func UpdateGuideMetadata(path string, meta GuideMetadata) error {
 	content, err := os.ReadFile(path)
