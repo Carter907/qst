@@ -15,6 +15,7 @@ qst can be used to initialize knowledge graph directories, update unformatted ma
 ### SEE ALSO
 
 * [qst add](qst_add.md)	 - Add a new guide to the knowledge graph.
+* [qst build](qst_build.md)	 - Compile the knowledge graph into a static HTML website
 * [qst form](qst_form.md)	 - zip a knowledge graph directory into the .kng archive file format
 * [qst free](qst_free.md)	 - Unzip a .kng file so you can read or edit the knowledge graph
 * [qst link](qst_link.md)	 - Link a subguide to an existing guide.
