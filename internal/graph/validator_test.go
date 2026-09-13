@@ -6,7 +6,7 @@ import (
 
 func TestValidateGraph(t *testing.T) {
 	mockConfig := Manifest{
-		Scopes: []string{"definition", "description", "explanation", "lesson"},
+		Scopes:     []string{"definition", "description", "explanation", "lesson"},
 		Adherences: []string{"vague", "introductory", "detailed", "strict"},
 	}
 	tests := []struct {
@@ -293,7 +293,7 @@ func TestCheckAcyclic(t *testing.T) {
 
 func TestValidateGraphRelaxedSubguides(t *testing.T) {
 	mockConfig := Manifest{
-		Scopes: []string{"definition", "description", "explanation", "lesson"},
+		Scopes:     []string{"definition", "description", "explanation", "lesson"},
 		Adherences: []string{"vague", "introductory", "detailed", "strict"},
 
 		RelaxedSubguides: true,
@@ -323,8 +323,8 @@ func TestValidateGraphRelaxedSubguides(t *testing.T) {
 
 func TestValidateGraphStrictCoverage(t *testing.T) {
 	mockConfig := Manifest{
-		Scopes: []string{"definition", "description", "explanation", "lesson"},
-		Adherences: []string{"vague", "introductory", "detailed", "strict"},
+		Scopes:         []string{"definition", "description", "explanation", "lesson"},
+		Adherences:     []string{"vague", "introductory", "detailed", "strict"},
 		StrictCoverage: true,
 	}
 
@@ -338,10 +338,10 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			guides: map[string]Guide{
 				"guide1": {
 					ID:         "guide1",
-					HasContent: true, 
-					LineCount: 10,
+					HasContent: true,
+					LineCount:  10,
 					Metadata: GuideMetadata{
-						Scope:     "lesson",
+						Scope: "lesson",
 						SubGuides: []SubGuideRelation{
 							{Guide: "guide2", Adherence: "detailed", Segment: "1-5"},
 							{Guide: "guide3", Adherence: "detailed", Segment: "6-10"},
@@ -358,10 +358,10 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			guides: map[string]Guide{
 				"guide1": {
 					ID:         "guide1",
-					HasContent: true, 
-					LineCount: 10,
+					HasContent: true,
+					LineCount:  10,
 					Metadata: GuideMetadata{
-						Scope:     "lesson",
+						Scope: "lesson",
 						SubGuides: []SubGuideRelation{
 							{Guide: "guide2", Adherence: "detailed", Segment: "2-10"},
 						},
@@ -376,10 +376,10 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			guides: map[string]Guide{
 				"guide1": {
 					ID:         "guide1",
-					HasContent: true, 
-					LineCount: 10,
+					HasContent: true,
+					LineCount:  10,
 					Metadata: GuideMetadata{
-						Scope:     "lesson",
+						Scope: "lesson",
 						SubGuides: []SubGuideRelation{
 							{Guide: "guide2", Adherence: "detailed", Segment: "1-4"},
 							{Guide: "guide3", Adherence: "detailed", Segment: "6-10"},
@@ -396,10 +396,10 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			guides: map[string]Guide{
 				"guide1": {
 					ID:         "guide1",
-					HasContent: true, 
-					LineCount: 10,
+					HasContent: true,
+					LineCount:  10,
 					Metadata: GuideMetadata{
-						Scope:     "lesson",
+						Scope: "lesson",
 						SubGuides: []SubGuideRelation{
 							{Guide: "guide2", Adherence: "detailed", Segment: "1-9"},
 						},
@@ -414,10 +414,10 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			guides: map[string]Guide{
 				"guide1": {
 					ID:         "guide1",
-					HasContent: true, 
-					LineCount: 10,
+					HasContent: true,
+					LineCount:  10,
 					Metadata: GuideMetadata{
-						Scope:     "lesson",
+						Scope: "lesson",
 						SubGuides: []SubGuideRelation{
 							{Guide: "guide2", Adherence: "detailed", Segment: "1-5"},
 							{Guide: "guide3", Adherence: "detailed", Segment: "5-10"},

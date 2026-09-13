@@ -11,7 +11,7 @@ Quest facilitates the distribution and management of knowledge.
 
 You can use the file format on education platforms for curriculum building and learning path creation (walks on the graph).
 
-Being able to structure information using a standard format is important. Quest helps decrease uncertainty in the learning process by proposing and helping to enforce a structural standard for markdown content. Quest enforces this standard format using `qst validate`, which checks knowledge graph files for any formatting or structural violations (like cycles).
+Being able to structure information using a standard format is important. Quest helps decrease uncertainty in the learning process by proposing and helping to enforce a structural standard for markdown content. Quest enforces this standard format using `qst validate`, which checks many kinds of inconsistencies in the knowledge graph structure (you can learn more [here](/docs/cli/qst_validate.md)).
 
 By offloading validation of content to a concrete system, you can focus on comprehending and building upon learning material.
 

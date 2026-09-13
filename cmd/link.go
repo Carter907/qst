@@ -14,7 +14,7 @@ var (
 	linkInteractive bool
 	linkDir         string
 	linkGuide       string
-	linkAdherence     string
+	linkAdherence   string
 	linkSegment     string
 )
 
@@ -70,7 +70,8 @@ var linkCmd = &cobra.Command{
 				form := huh.NewForm(
 					huh.NewGroup(fields...),
 				)
-				if err := form.Run(); err != nil {
+				err = form.Run()
+				if err != nil {
 					fmt.Printf("Failed to run form: %v\n", err)
 					os.Exit(1)
 				}
@@ -104,9 +105,9 @@ var linkCmd = &cobra.Command{
 
 		// Append the new subguide
 		newSubguide := graph.SubGuideRelation{
-			Guide:   linkGuide,
+			Guide:     linkGuide,
 			Adherence: linkAdherence,
-			Segment: linkSegment,
+			Segment:   linkSegment,
 		}
 		parentGuide.Metadata.SubGuides = append(parentGuide.Metadata.SubGuides, newSubguide)
 

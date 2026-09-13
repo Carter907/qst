@@ -122,7 +122,6 @@ qst add Exponent --dir my_graph/`,
 				}
 			}
 
-
 		}
 
 		meta := graph.GuideMetadata{

@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	listDir     string
-	listScope   string
-	listTags    []string
+	listDir   string
+	listScope string
+	listTags  []string
 )
 
 var listCmd = &cobra.Command{
