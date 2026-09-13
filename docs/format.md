@@ -60,11 +60,11 @@ These properties describe the knowledge graph as a whole.
 
 #### `title`
 
-The name given to the entire knowledge graph
+The name given to the entire knowledge graph.
 
 #### `description`
 
-A small description of whatever your knowledge graph seeks to explain
+A small description of whatever your knowledge graph seeks to explain.
 
 ### Categories
 
@@ -80,10 +80,9 @@ Adherence is a measure of fidelity: it defines how closely and deeply a parent g
 
 #### `relaxed_subguides`
 
-When false (default): Sub-guides must be strictly one step down on the scope ladder (e.g., an explanation can only contain
+When false, subguides must be strictly one step down on the scope ladder (e.g., an explanation can only contain
       descriptions).
-
-When true: Allows skipping rungs on the ladder (e.g., a lesson can directly encompass a definition).
+Otherwise if true, it allows skipping rungs on the ladder (e.g., a lesson can directly encompass a definition).
 
 #### `require_subguides`
 
