@@ -21,7 +21,8 @@ A list of required guides.
 
 An optional list of sub-guide relation objects.
 
->[!NOTE] These sub-guides must be exactly one scope level smaller than the current guide, unless `relaxed_subguides: true` is set in the `manifest.yaml` which allows any smaller scope.
+> [!NOTE]
+> These sub-guides must be exactly one scope level smaller than the current guide, unless `relaxed_subguides: true` is set in the `manifest.yaml` which allows any smaller scope.
 
 Each object must contain:
 - `guide`: The name of the sub-guide being referenced.
