@@ -1,4 +1,4 @@
-# quest-cli
+# `qst`: A Command-line Knowledge System
 
 Quest is a command-line tool for storing and structuring knowledge. You use markdown files to explain a certain idea or practice. These files are related to each other through a directed acyclic graph. This tool helps you manipulate, verify, and package this structured material into a single file format.
 
@@ -21,14 +21,10 @@ By offloading validation of content to a concrete system, you can focus on compr
 **Using `go install`**
 
 ```sh
-go install github.com/Carter907/quest-cli@latest
+go install github.com/Carter907/qst@latest
 ```
 
-> [!NOTE]
-> `go install` installs the executable as `quest-cli` (or `quest-cli.exe` on Windows) into `$GOPATH/bin`. You can run `quest-cli` directly or alias/rename it to `qst`.
-
 Visit [installation.md](/docs/installation.md) for more details.
-
 
 ## Usage
 

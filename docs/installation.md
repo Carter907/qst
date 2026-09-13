@@ -6,8 +6,8 @@ qst cli can run on all major operating systems as long as you have go installed 
 
 Clone the repository:
 ```sh
-git clone https://github.com/Carter907/quest-cli.git
-cd quest-cli
+git clone https://github.com/Carter907/qst.git
+cd qst
 ```
 
 Build and install to your `GOPATH/bin`:

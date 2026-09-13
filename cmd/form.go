@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Carter907/quest-cli/internal/graph"
+	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
 

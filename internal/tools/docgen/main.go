@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Carter907/quest-cli/cmd" // update to your module path
+	"github.com/Carter907/qst/cmd" // update to your module path
 	"github.com/spf13/cobra/doc"
 )
 
