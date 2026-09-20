@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"charm.land/huh/v2"
+	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )

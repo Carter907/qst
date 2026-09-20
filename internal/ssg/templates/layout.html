@@ -1,41 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>{{ .Title }}</title>
-    <link rel="stylesheet" href="assets/style.css">
-    
+    <link rel="stylesheet" href="assets/style.css" />
+
     <!-- KaTeX for LaTeX rendering (Local Vendor) -->
-    <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="assets/vendor/katex/katex.min.css" />
     <script defer src="assets/vendor/katex/katex.min.js"></script>
-    <script defer src="assets/vendor/katex/contrib/auto-render.min.js" 
-        onload="renderMathInElement(document.body, {
-            delimiters: [
-                {left: '$$', right: '$$', display: true},
-                {left: '$', right: '$', display: false},
-                {left: '\\(', right: '\\)', display: false},
-                {left: '\\[', right: '\\]', display: true}
-            ]
-        });"></script>
-</head>
-<body>
+    <script
+      defer
+      src="assets/vendor/katex/contrib/auto-render.min.js"
+      onload="
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true },
+          ],
+        })
+      "
+    ></script>
+  </head>
+  <body>
     <div class="sidebar">
-        <!-- Generated Navigation based on manifest.yaml Tours/Scopes -->
-        <h2>Knowledge Graph</h2>
-        <ul>
-            <!-- Placeholder for now -->
-            <li><a href="index.html">Home</a></li>
-        </ul>
+      <h2>Guides</h2>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+      </ul>
     </div>
-    <div class="content">
-        <h1>{{ .Title }}</h1>
-        {{ .Content }} <!-- Generated HTML from Goldmark -->
-    </div>
-    
-    <!-- Mermaid.js for diagrams (Local Vendor) -->
+    <div class="content">{{ template "content" . }}</div>
+
     <script type="module">
-      import mermaid from './assets/vendor/mermaid/mermaid.esm.min.mjs';
+      import mermaid from "./assets/vendor/mermaid/mermaid.esm.min.mjs";
       mermaid.initialize({ startOnLoad: true });
     </script>
-</body>
+  </body>
 </html>

@@ -22,13 +22,13 @@ func downloadKaTeX(destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	gr, err := gzip.NewReader(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 
 	tr := tar.NewReader(gr)
 	for {
@@ -42,13 +42,13 @@ func downloadKaTeX(destDir string) error {
 
 		target := filepath.Join(destDir, header.Name)
 		if header.FileInfo().IsDir() {
-			if mkdirErr := os.MkdirAll(target, 0755); mkdirErr != nil {
+			if mkdirErr := os.MkdirAll(target, 0o755); mkdirErr != nil {
 				return mkdirErr
 			}
 			continue
 		}
 
-		if mkdirErr := os.MkdirAll(filepath.Dir(target), 0755); mkdirErr != nil {
+		if mkdirErr := os.MkdirAll(filepath.Dir(target), 0o755); mkdirErr != nil {
 			return mkdirErr
 		}
 		f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
@@ -56,10 +56,10 @@ func downloadKaTeX(destDir string) error {
 			return err
 		}
 		if _, err := io.Copy(f, tr); err != nil {
-			f.Close()
+			_ = f.Close()
 			return err
 		}
-		f.Close()
+		_ = f.Close()
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func downloadMermaid(destDir string) error {
 	if _, err := os.Stat(target); err == nil {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
 
@@ -78,13 +78,13 @@ func downloadMermaid(destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	f, err := os.Create(target)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	_, err = io.Copy(f, resp.Body)
 	return err
@@ -93,7 +93,7 @@ func downloadMermaid(destDir string) error {
 // DownloadAssets orchestrates the downloading of KaTeX and Mermaid to outDir/assets/vendor.
 func DownloadAssets(outDir string) error {
 	vendorDir := filepath.Join(outDir, "assets", "vendor")
-	if err := os.MkdirAll(vendorDir, 0755); err != nil {
+	if err := os.MkdirAll(vendorDir, 0o755); err != nil {
 		return err
 	}
 

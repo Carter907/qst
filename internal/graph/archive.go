@@ -15,10 +15,10 @@ func ArchiveGraph(dirPath string, outputPath string) error {
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	w := zip.NewWriter(outFile)
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -44,7 +44,7 @@ func ArchiveGraph(dirPath string, outputPath string) error {
 		}
 
 		_, err = io.Copy(f, fileContent)
-		fileContent.Close()
+		_ = fileContent.Close()
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func UnarchiveGraph(inputPath string, destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	for _, f := range r.File {
 
@@ -79,18 +79,18 @@ func UnarchiveGraph(inputPath string, destDir string) error {
 
 		dst, err := os.Create(outPath)
 		if err != nil {
-			rc.Close()
+			_ = rc.Close()
 			return err
 		}
 
 		if _, err := io.Copy(dst, rc); err != nil {
-			dst.Close()
-			rc.Close()
+			_ = dst.Close()
+			_ = rc.Close()
 			return err
 		}
 
-		dst.Close()
-		rc.Close()
+		_ = dst.Close()
+		_ = rc.Close()
 
 	}
 

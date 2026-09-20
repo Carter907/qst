@@ -1,3 +1,4 @@
+// Package ssg contains logic for the creation of the static site
 package ssg
 
 import (
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Carter907/qst/internal/graph"
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
@@ -26,6 +28,11 @@ var templatesFS embed.FS
 type PageData struct {
 	Title   string
 	Content template.HTML
+}
+
+type IndexPageData struct {
+	Title       string
+	Description string
 }
 
 type linkASTTransformer struct{}
@@ -58,8 +65,13 @@ func (l *linkASTTransformer) Transform(node *ast.Document, reader text.Reader, p
 }
 
 func BuildSite(dirPath string, outDir string) error {
+	config, err := graph.ParseConfig(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
 	// Ensure outDir exists
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create outDir: %w", err)
 	}
 
@@ -73,7 +85,7 @@ func BuildSite(dirPath string, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read embedded style.css: %w", err)
 	}
-	if writeErr := os.WriteFile(filepath.Join(outDir, "assets", "style.css"), styleData, 0644); writeErr != nil {
+	if writeErr := os.WriteFile(filepath.Join(outDir, "assets", "style.css"), styleData, 0o644); writeErr != nil {
 		return fmt.Errorf("failed to write style.css: %w", writeErr)
 	}
 
@@ -99,14 +111,14 @@ func BuildSite(dirPath string, outDir string) error {
 		),
 	)
 
-	// 4. Parse Layout
-	layoutStr, err := templatesFS.ReadFile("templates/layout.html")
+	// 4. Parse Templates
+	indexTmpl, err := template.ParseFS(templatesFS, "templates/layout.html", "templates/index.html")
 	if err != nil {
-		return fmt.Errorf("failed to read layout.html: %w", err)
+		return fmt.Errorf("failed to parse index templates: %w", err)
 	}
-	tmpl, err := template.New("layout").Parse(string(layoutStr))
+	guideTmpl, err := template.ParseFS(templatesFS, "templates/layout.html", "templates/guide.html")
 	if err != nil {
-		return fmt.Errorf("failed to parse layout template: %w", err)
+		return fmt.Errorf("failed to parse guide templates: %w", err)
 	}
 
 	// 5. Process Markdown Files
@@ -126,7 +138,7 @@ func BuildSite(dirPath string, outDir string) error {
 		}
 
 		if strings.HasSuffix(info.Name(), ".md") {
-			return processMarkdownFile(path, dirPath, outDir, info, md, tmpl)
+			return processMarkdownFile(path, dirPath, outDir, info, md, guideTmpl)
 		}
 		return nil
 	})
@@ -134,15 +146,10 @@ func BuildSite(dirPath string, outDir string) error {
 		return err
 	}
 
-	// 6. Generate Index Page
-	indexContent, err := templatesFS.ReadFile("templates/index.html")
-	if err != nil {
-		return fmt.Errorf("failed to read embedded index.html: %w", err)
-	}
-
-	indexData := PageData{
-		Title:   "Knowledge Graph",
-		Content: template.HTML(indexContent),
+	// Generate Index Page
+	indexData := IndexPageData{
+		Title:       config.Title,
+		Description: config.Description,
 	}
 
 	idxOutPath := filepath.Join(outDir, "index.html")
@@ -150,9 +157,9 @@ func BuildSite(dirPath string, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create index.html: %w", err)
 	}
-	defer idxF.Close()
+	defer func() { _ = idxF.Close() }()
 
-	if tmplErr := tmpl.Execute(idxF, indexData); tmplErr != nil {
+	if tmplErr := indexTmpl.ExecuteTemplate(idxF, "layout.html", indexData); tmplErr != nil {
 		return fmt.Errorf("failed to execute template for index.html: %w", tmplErr)
 	}
 
@@ -187,7 +194,7 @@ func processMarkdownFile(path, dirPath, outDir string, info os.FileInfo, md gold
 
 	outPath := filepath.Join(outDir, strings.TrimSuffix(relPath, ".md")+".html")
 
-	if mkdirErr := os.MkdirAll(filepath.Dir(outPath), 0755); mkdirErr != nil {
+	if mkdirErr := os.MkdirAll(filepath.Dir(outPath), 0o755); mkdirErr != nil {
 		return mkdirErr
 	}
 
@@ -200,9 +207,9 @@ func processMarkdownFile(path, dirPath, outDir string, info os.FileInfo, md gold
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	if tmplErr := tmpl.Execute(f, data); tmplErr != nil {
+	if tmplErr := tmpl.ExecuteTemplate(f, "layout.html", data); tmplErr != nil {
 		return tmplErr
 	}
 

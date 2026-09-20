@@ -18,6 +18,12 @@ func TestBuildSite(t *testing.T) {
 	}
 
 	// Create a mock markdown file with MathJax, Mermaid, and GFM
+
+	manifestContent := "name: Test\nversion: 1.0.0\n"
+	if err := os.WriteFile(filepath.Join(sourceDir, "manifest.yaml"), []byte(manifestContent), 0644); err != nil {
+		t.Fatalf("Failed to write mock manifest: %v", err)
+	}
+
 	markdownContent := `
 # Test Knowledge Graph
 

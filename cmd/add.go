@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/huh/v2"
+	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v3"
