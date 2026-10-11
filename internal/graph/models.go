@@ -19,6 +19,7 @@ type Guide struct {
 	Metadata   GuideMetadata
 	LineCount  int
 	HasContent bool
+	Body       string
 }
 
 type Manifest struct {

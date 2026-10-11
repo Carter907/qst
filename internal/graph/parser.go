@@ -88,26 +88,37 @@ func ParseGuide(path string) (Guide, error) {
 		}
 	}
 
+	body := ""
+	if frontMatterEnd+1 < len(lines) {
+		body = strings.Join(lines[frontMatterEnd+1:], "\n")
+	}
+
 	return Guide{
 		ID:         id,
 		Path:       path,
 		Metadata:   meta,
 		LineCount:  len(lines) - (frontMatterEnd + 1),
 		HasContent: hasContent,
+		Body:       body,
 	}, nil
 }
 
-// ParseConfig reads the manifest.yaml configuration file in the specified directory.
+// ParseConfig reads the manifest.yaml (or quest.yaml fallback) configuration file in the specified directory.
 func ParseConfig(dirPath string) (Manifest, error) {
 	configPath := filepath.Join(dirPath, "manifest.yaml")
 	content, err := os.ReadFile(configPath)
 	if err != nil {
-		return Manifest{}, fmt.Errorf("failed to read manifest.yaml: %w", err)
+		altPath := filepath.Join(dirPath, "quest.yaml")
+		altContent, altErr := os.ReadFile(altPath)
+		if altErr != nil {
+			return Manifest{}, fmt.Errorf("failed to read manifest.yaml: %w", err)
+		}
+		content = altContent
 	}
 
 	var config Manifest
 	if err := yaml.Unmarshal(content, &config); err != nil {
-		return Manifest{}, fmt.Errorf("failed to parse manifest.yaml: %w", err)
+		return Manifest{}, fmt.Errorf("failed to parse manifest: %w", err)
 	}
 
 	return config, nil
@@ -186,4 +197,84 @@ func UpdateGuideMetadata(path string, meta GuideMetadata) error {
 	newLines = append(newLines, lines[frontMatterEnd:]...)
 
 	return os.WriteFile(path, []byte(strings.Join(newLines, newline)), 0644)
+}
+
+// AddPrerequisite adds a prerequisite to the guide at the given path if it's not already present.
+func AddPrerequisite(path string, prereq string) error {
+	guide, err := ParseGuide(path)
+	if err != nil {
+		return err
+	}
+	for _, p := range guide.Metadata.Prerequisites {
+		if p == prereq {
+			return nil
+		}
+	}
+	guide.Metadata.Prerequisites = append(guide.Metadata.Prerequisites, prereq)
+	return UpdateGuideMetadata(path, guide.Metadata)
+}
+
+// RemovePrerequisite removes a prerequisite from the guide at the given path.
+func RemovePrerequisite(path string, prereq string) error {
+	guide, err := ParseGuide(path)
+	if err != nil {
+		return err
+	}
+	var updated []string
+	found := false
+	for _, p := range guide.Metadata.Prerequisites {
+		if p == prereq {
+			found = true
+			continue
+		}
+		updated = append(updated, p)
+	}
+	if !found {
+		return fmt.Errorf("prerequisite '%s' not found in %s", prereq, guide.ID)
+	}
+	guide.Metadata.Prerequisites = updated
+	return UpdateGuideMetadata(path, guide.Metadata)
+}
+
+// UpsertSubGuide adds or updates a subguide relation in the guide at the given path.
+// If the relation already exists for relation.Guide, its adherence and segment are updated in place.
+func UpsertSubGuide(path string, relation SubGuideRelation) error {
+	guide, err := ParseGuide(path)
+	if err != nil {
+		return err
+	}
+	found := false
+	for i, s := range guide.Metadata.SubGuides {
+		if s.Guide == relation.Guide {
+			guide.Metadata.SubGuides[i] = relation
+			found = true
+			break
+		}
+	}
+	if !found {
+		guide.Metadata.SubGuides = append(guide.Metadata.SubGuides, relation)
+	}
+	return UpdateGuideMetadata(path, guide.Metadata)
+}
+
+// RemoveSubGuide removes a subguide relation from the guide at the given path.
+func RemoveSubGuide(path string, subGuide string) error {
+	guide, err := ParseGuide(path)
+	if err != nil {
+		return err
+	}
+	var updated []SubGuideRelation
+	found := false
+	for _, s := range guide.Metadata.SubGuides {
+		if s.Guide == subGuide {
+			found = true
+			continue
+		}
+		updated = append(updated, s)
+	}
+	if !found {
+		return fmt.Errorf("subguide '%s' not found in %s", subGuide, guide.ID)
+	}
+	guide.Metadata.SubGuides = updated
+	return UpdateGuideMetadata(path, guide.Metadata)
 }

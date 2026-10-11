@@ -245,3 +245,228 @@ func validateCoverage(guide Guide, allRanges [][2]int, config Manifest) error {
 	}
 	return nil
 }
+
+// GetScopeValue returns the hierarchical index of the given scope (1-indexed)
+func GetScopeValue(scope string, config Manifest) int {
+	return getScopeValue(scope, config)
+}
+
+// IsValidAdherence checks if an adherence value is listed in the manifest
+func IsValidAdherence(adherence string, config Manifest) bool {
+	return isValidAdherence(adherence, config)
+}
+
+// ParseSegments parses a segment string like "10-20, 25-30" into a slice of [2]int
+func ParseSegments(segmentStr string) ([][2]int, error) {
+	return parseSegments(segmentStr)
+}
+
+// ValidatePrerequisiteLink checks if a prerequisite relationship can be legally added
+func ValidatePrerequisiteLink(guides map[string]Guide, config Manifest, sourceID, prereqID string) error {
+	sourceGuide, exists := guides[sourceID]
+	if !exists {
+		return fmt.Errorf("guide '%s' does not exist", sourceID)
+	}
+
+	prereqGuide, exists := guides[prereqID]
+	if !exists {
+		return fmt.Errorf("prerequisite guide '%s' does not exist", prereqID)
+	}
+
+	if sourceID == prereqID {
+		return fmt.Errorf("guide cannot be a prerequisite of itself")
+	}
+
+	if sourceGuide.Metadata.Scope != prereqGuide.Metadata.Scope {
+		return fmt.Errorf("cannot link prerequisite: '%s' has scope '%s' but '%s' has scope '%s'. Horizontal edges must have identical scope",
+			prereqID, prereqGuide.Metadata.Scope, sourceID, sourceGuide.Metadata.Scope)
+	}
+
+	if slices.Contains(sourceGuide.Metadata.Prerequisites, prereqID) {
+		return fmt.Errorf("prerequisite '%s' is already linked to '%s'", prereqID, sourceID)
+	}
+
+	// Cycle simulation
+	cloned := make(map[string]Guide, len(guides))
+	for k, v := range guides {
+		cloned[k] = v
+	}
+	simGuide := sourceGuide
+	simGuide.Metadata.Prerequisites = append([]string(nil), sourceGuide.Metadata.Prerequisites...)
+	simGuide.Metadata.Prerequisites = append(simGuide.Metadata.Prerequisites, prereqID)
+	cloned[sourceID] = simGuide
+
+	if err := CheckAcyclic(cloned); err != nil {
+		return fmt.Errorf("linking prerequisite '%s' to '%s' creates a cycle: %w", prereqID, sourceID, err)
+	}
+
+	return nil
+}
+
+// ValidateSubGuideLink checks if a subguide relationship can be legally added or updated
+func ValidateSubGuideLink(guides map[string]Guide, config Manifest, parentID, subID, adherence, segment string) error {
+	parentGuide, exists := guides[parentID]
+	if !exists {
+		return fmt.Errorf("parent guide '%s' does not exist", parentID)
+	}
+
+	subGuide, exists := guides[subID]
+	if !exists {
+		return fmt.Errorf("subguide '%s' does not exist", subID)
+	}
+
+	if parentID == subID {
+		return fmt.Errorf("guide cannot be a subguide of itself")
+	}
+
+	parentScopeVal := getScopeValue(parentGuide.Metadata.Scope, config)
+	if parentScopeVal == 0 {
+		return fmt.Errorf("parent guide '%s' has invalid scope '%s'", parentID, parentGuide.Metadata.Scope)
+	}
+
+	subScopeVal := getScopeValue(subGuide.Metadata.Scope, config)
+	if subScopeVal == 0 {
+		return fmt.Errorf("subguide '%s' has invalid scope '%s'", subID, subGuide.Metadata.Scope)
+	}
+
+	if subScopeVal >= parentScopeVal {
+		return fmt.Errorf("subguide '%s' (scope: '%s') must have a strictly smaller scope than parent '%s' (scope: '%s')",
+			subID, subGuide.Metadata.Scope, parentID, parentGuide.Metadata.Scope)
+	}
+
+	if !config.RelaxedSubguides && parentScopeVal-subScopeVal != 1 {
+		return fmt.Errorf("subguide '%s' (scope: '%s') must be exactly one scope level below parent '%s' (scope: '%s') when relaxed_subguides is false",
+			subID, subGuide.Metadata.Scope, parentID, parentGuide.Metadata.Scope)
+	}
+
+	if adherence != "" && !isValidAdherence(adherence, config) {
+		return fmt.Errorf("invalid adherence '%s'. Valid adherences are: %v", adherence, config.Adherences)
+	}
+
+	if segment != "" {
+		ranges, err := parseSegments(segment)
+		if err != nil {
+			return fmt.Errorf("invalid segment '%s': %w", segment, err)
+		}
+		if parentGuide.LineCount > 0 {
+			for _, r := range ranges {
+				if r[1] > parentGuide.LineCount {
+					return fmt.Errorf("segment end line %d exceeds parent guide body line count (%d)", r[1], parentGuide.LineCount)
+				}
+			}
+		}
+	}
+
+	// Cycle simulation
+	cloned := make(map[string]Guide, len(guides))
+	for k, v := range guides {
+		cloned[k] = v
+	}
+	simGuide := parentGuide
+	simGuide.Metadata.SubGuides = append([]SubGuideRelation(nil), parentGuide.Metadata.SubGuides...)
+	newRel := SubGuideRelation{Guide: subID, Adherence: adherence, Segment: segment}
+	found := false
+	for i, s := range simGuide.Metadata.SubGuides {
+		if s.Guide == subID {
+			simGuide.Metadata.SubGuides[i] = newRel
+			found = true
+			break
+		}
+	}
+	if !found {
+		simGuide.Metadata.SubGuides = append(simGuide.Metadata.SubGuides, newRel)
+	}
+	cloned[parentID] = simGuide
+
+	if err := CheckAcyclic(cloned); err != nil {
+		return fmt.Errorf("linking subguide '%s' to '%s' creates a cycle: %w", subID, parentID, err)
+	}
+
+	return nil
+}
+
+// LineCoverage describes the coverage state of a single body line in a guide
+type LineCoverage struct {
+	LineNumber int
+	Text       string
+	SubGuides  []string
+	Adherences []string
+	IsOverlap  bool
+}
+
+// GuideCoverageReport summarizes coverage information for a guide's body
+type GuideCoverageReport struct {
+	GuideID          string
+	Scope            string
+	StrictCoverage   bool
+	TotalBodyLines   int
+	CoveredLines     int
+	UnmappedLines    int
+	OverlappingLines int
+	Lines            []LineCoverage
+}
+
+// AnalyzeGuideCoverage evaluates subguide segment coverage against body lines
+func AnalyzeGuideCoverage(guide Guide, config Manifest) (GuideCoverageReport, error) {
+	report := GuideCoverageReport{
+		GuideID:        guide.ID,
+		Scope:          guide.Metadata.Scope,
+		StrictCoverage: config.StrictCoverage,
+	}
+
+	bodyLines := []string{}
+	if guide.Body != "" {
+		bodyLines = strings.Split(guide.Body, "\n")
+	}
+	report.TotalBodyLines = len(bodyLines)
+
+	type subHit struct {
+		guide     string
+		adherence string
+	}
+	lineHits := make(map[int][]subHit)
+
+	for _, sub := range guide.Metadata.SubGuides {
+		if sub.Segment == "" {
+			continue
+		}
+		ranges, err := parseSegments(sub.Segment)
+		if err != nil {
+			return report, fmt.Errorf("invalid segment '%s' for subguide '%s': %w", sub.Segment, sub.Guide, err)
+		}
+		for _, r := range ranges {
+			for l := r[0]; l <= r[1]; l++ {
+				lineHits[l] = append(lineHits[l], subHit{guide: sub.Guide, adherence: sub.Adherence})
+			}
+		}
+	}
+
+	report.Lines = make([]LineCoverage, report.TotalBodyLines)
+	for i := 0; i < report.TotalBodyLines; i++ {
+		lineNum := i + 1
+		text := bodyLines[i]
+		hits := lineHits[lineNum]
+
+		cov := LineCoverage{
+			LineNumber: lineNum,
+			Text:       text,
+		}
+
+		if len(hits) == 0 {
+			report.UnmappedLines++
+		} else {
+			report.CoveredLines++
+			if len(hits) > 1 {
+				cov.IsOverlap = true
+				report.OverlappingLines++
+			}
+			for _, h := range hits {
+				cov.SubGuides = append(cov.SubGuides, h.guide)
+				cov.Adherences = append(cov.Adherences, h.adherence)
+			}
+		}
+		report.Lines[i] = cov
+	}
+
+	return report, nil
+}

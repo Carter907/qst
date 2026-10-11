@@ -71,6 +71,9 @@ No frontmatter at all.
 		if len(g.Metadata.Prerequisites) != 1 || g.Metadata.Prerequisites[0] != "other" {
 			t.Errorf("expected 1 prerequisite 'other', got %v", g.Metadata.Prerequisites)
 		}
+		if g.Body != "# Content here\n" {
+			t.Errorf("expected Body '# Content here\\n', got %q", g.Body)
+		}
 	})
 
 	t.Run("invalid yaml", func(t *testing.T) {
@@ -84,6 +87,21 @@ No frontmatter at all.
 		_, err := ParseGuide(filepath.Join(tempDir, "no_frontmatter.md"))
 		if err == nil {
 			t.Error("ParseGuide() expected error for no frontmatter, got nil")
+		}
+	})
+
+	t.Run("parse config quest.yaml fallback", func(t *testing.T) {
+		configDir := t.TempDir()
+		questYaml := "title: Fallback Test\ndescription: Testing quest.yaml\n"
+		if err := os.WriteFile(filepath.Join(configDir, "quest.yaml"), []byte(questYaml), 0644); err != nil {
+			t.Fatalf("failed to write quest.yaml: %v", err)
+		}
+		cfg, err := ParseConfig(configDir)
+		if err != nil {
+			t.Fatalf("ParseConfig() failed with quest.yaml: %v", err)
+		}
+		if cfg.Title != "Fallback Test" {
+			t.Errorf("expected Title 'Fallback Test', got %q", cfg.Title)
 		}
 	})
 }
