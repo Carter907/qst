@@ -20,6 +20,7 @@ bin/
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*
+!cmd/coverage.go
 *.coverprofile
 profile.cov
 
@@ -36,3 +37,13 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Static site generated output
+public/
+examples/*/public/
+
+# Packaged knowledge archives
+*.kng
+
+# Reference documents
+*.pdf
