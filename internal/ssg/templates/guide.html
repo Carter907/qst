@@ -1,3 +1,55 @@
 {{ define "content" }}
-<h1>Guide: {{ .Title }}</h1>
-{{ .Content }} {{ end }}
+<article class="guide-article">
+  <header class="guide-header">
+    <h1>{{ .Title }}</h1>
+    {{ if or .Scope .Tags }}
+    <div class="guide-byline">
+      {{ if .Scope }}<span class="guide-byline-scope">Scope: <em>{{ .Scope }}</em></span>{{ end }}
+      {{ if and .Scope .Tags }}<span class="guide-byline-sep">·</span>{{ end }}
+      {{ if .Tags }}<span class="guide-byline-tags">Tags: {{ range $i, $tag := .Tags }}{{ if $i }}, {{ end }}<em>{{ $tag }}</em>{{ end }}</span>{{ end }}
+    </div>
+    {{ end }}
+  </header>
+
+  <div class="guide-body">
+    {{ .Content }}
+  </div>
+
+  {{ if or .Prerequisites .SubGuides }}
+  <footer class="guide-appendix">
+    <h2 class="appendix-title">References & Relations</h2>
+    <div class="appendix-grid">
+      {{ if .Prerequisites }}
+      <div class="appendix-section">
+        <h3>Prerequisites</h3>
+        <ul class="appendix-list">
+          {{ range .Prerequisites }}
+          <li>
+            {{ if .URL }}<a href="{{ .URL }}">{{ .Title }}</a>{{ else }}<span>{{ .Title }}</span>{{ end }}
+            {{ if .Scope }}<span class="appendix-meta">({{ .Scope }})</span>{{ end }}
+          </li>
+          {{ end }}
+        </ul>
+      </div>
+      {{ end }}
+
+      {{ if .SubGuides }}
+      <div class="appendix-section">
+        <h3>Sub-Guides</h3>
+        <ul class="appendix-list">
+          {{ range .SubGuides }}
+          <li>
+            {{ if .URL }}<a href="{{ .URL }}">{{ .Title }}</a>{{ else }}<span>{{ .Title }}</span>{{ end }}
+            {{ if .Scope }}<span class="appendix-meta">({{ .Scope }})</span>{{ end }}
+            {{ if .Adherence }}<span class="appendix-adherence">[{{ .Adherence }}]</span>{{ end }}
+            {{ if .Segment }}<span class="appendix-segment">lines {{ .Segment }}</span>{{ end }}
+          </li>
+          {{ end }}
+        </ul>
+      </div>
+      {{ end }}
+    </div>
+  </footer>
+  {{ end }}
+</article>
+{{ end }}

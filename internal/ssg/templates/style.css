@@ -1,96 +1,495 @@
+/* Base & Academic Typography */
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
-  line-height: 1.6;
+    "Charter", "Bitstream Charter", "Sitka Text", "Cambria", Georgia,
+    "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.62;
+  color: #1a1a1a;
+  background-color: #ffffff;
   margin: 0;
   padding: 0;
   display: flex;
-  color: #333;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Sidebar Navigation */
 .sidebar {
-  width: 250px;
-  background: #f4f4f4;
-  padding: 20px;
+  width: 260px;
+  background: #fbfbfb;
+  padding: 28px 20px;
   height: 100vh;
   box-sizing: border-box;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid #e2e2e2;
   position: fixed;
   overflow-y: auto;
+  font-size: 0.9em;
 }
 
-.sidebar h2 {
-  font-size: 1.2em;
-  margin-top: 0;
+.sidebar-header {
+  margin-bottom: 24px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e8e8e8;
 }
 
-.sidebar ul {
-  list-style: none;
-  padding: 0;
-}
-
-.sidebar li {
-  margin-bottom: 10px;
-}
-
-.sidebar a {
+.sidebar-home-link {
+  display: inline-block;
+  font-weight: 600;
+  color: #111111;
   text-decoration: none;
-  color: #007acc;
 }
 
-.sidebar a:hover {
+.sidebar-home-link:hover {
   text-decoration: underline;
 }
 
+.sidebar-home-link.active {
+  font-weight: 700;
+}
+
+.sidebar-section {
+  margin-bottom: 24px;
+}
+
+.sidebar-heading {
+  font-size: 0.78em;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: #555555;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+  border-bottom: 1px solid #eeeeee;
+  padding-bottom: 3px;
+}
+
+.sidebar-tour-group {
+  margin-bottom: 10px;
+}
+
+.sidebar-tour-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #222222;
+  user-select: none;
+}
+
+.sidebar-tour-name {
+  font-weight: 600;
+}
+
+.sidebar-scope-group {
+  margin-bottom: 10px;
+}
+
+.sidebar-scope-title {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.9em;
+  color: #333333;
+  user-select: none;
+}
+
+.sidebar-scope-name {
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #333333;
+}
+
+.sidebar-count {
+  font-size: 0.85em;
+  color: #777777;
+}
+
+.sidebar-list {
+  list-style: none;
+  padding: 0 0 0 10px;
+  margin: 4px 0 10px 0;
+  border-left: 1px solid #e8e8e8;
+}
+
+.sidebar-item {
+  margin-bottom: 3px;
+}
+
+.sidebar-item a {
+  display: block;
+  padding: 2px 4px;
+  font-size: 0.92em;
+  color: #333333;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-item a:hover {
+  color: #000000;
+  text-decoration: underline;
+}
+
+.sidebar-item.active a {
+  color: #000000;
+  font-weight: 700;
+  background: none;
+  border-left: 2px solid #222222;
+  margin-left: -11px;
+  padding-left: 9px;
+}
+
+/* Main Content Area */
 .content {
-  margin-left: 250px;
-  padding: 40px;
-  max-width: 800px;
+  margin-left: 260px;
+  padding: 48px 56px;
+  max-width: 740px;
   width: 100%;
   box-sizing: border-box;
 }
 
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: inherit;
+  color: #111111;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: 1.9em;
+  margin-top: 0;
+  margin-bottom: 0.4em;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 0.25em;
+}
+
+h2 {
+  font-size: 1.35em;
+  margin-top: 1.6em;
+  margin-bottom: 0.4em;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 0.2em;
+}
+
+h3 {
+  font-size: 1.12em;
+  margin-top: 1.3em;
+  margin-bottom: 0.3em;
+}
+
+p {
+  margin: 0.8em 0 1.1em 0;
+}
+
+a {
+  color: #1a568c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: #0d2d4a;
+}
+
+/* Code & Pre */
 code {
-  background: #f4f4f4;
-  padding: 2px 5px;
-  border-radius: 4px;
-  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.9em;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.88em;
+  background: #f7f7f7;
+  padding: 0.15em 0.35em;
+  border: 1px solid #e4e4e4;
+  border-radius: 2px;
+  color: #24292e;
 }
 
 pre {
-  background: #f8f8f8;
-  padding: 15px;
-  border-radius: 5px;
+  background: #fcfcfc;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  padding: 14px 18px;
   overflow-x: auto;
+  line-height: 1.45;
 }
 
 pre code {
   background: none;
+  border: none;
   padding: 0;
+  font-size: 0.86em;
 }
 
+/* Blockquotes */
 blockquote {
-  border-left: 4px solid #ddd;
-  margin-left: 0;
-  padding-left: 15px;
-  color: #666;
+  margin: 1.4em 0;
+  padding: 0.4em 0 0.4em 1.2em;
+  border-left: 3px solid #777777;
+  color: #3a3a3a;
+  font-style: italic;
 }
 
+/* Academic Tables (booktabs style) */
 table {
   border-collapse: collapse;
   width: 100%;
-  margin-bottom: 20px;
+  margin: 1.8em 0;
+  border-top: 2px solid #222222;
+  border-bottom: 2px solid #222222;
+  font-size: 0.95em;
 }
 
-table th,
-table td {
-  border: 1px solid #ddd;
-  padding: 8px;
+th,
+td {
+  padding: 6px 12px;
   text-align: left;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
 }
 
-table th {
-  background: #f4f4f4;
+th {
+  border-bottom: 1px solid #222222;
+  font-weight: 600;
+  background: none;
+  color: #111111;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+/* Guide Header & Academic Byline */
+.guide-header {
+  margin-bottom: 24px;
+}
+
+.guide-header h1 {
+  margin-bottom: 6px;
+}
+
+.guide-byline {
+  font-size: 0.88em;
+  color: #666666;
+  margin-bottom: 12px;
+}
+
+.guide-byline-scope em,
+.guide-byline-tags em {
+  font-style: normal;
+  color: #333333;
+}
+
+.guide-byline-sep {
+  margin: 0 6px;
+  color: #aaaaaa;
+}
+
+/* Guide Body with Dedicated Gutter and Hairline Divider */
+.guide-body {
+  position: relative;
+  margin-top: 24px;
+  margin-left: 54px;
+  padding-left: 20px;
+  border-left: 1px solid #e8e8e8;
+}
+
+.line-marker {
+  position: static;
+  display: inline;
+}
+
+.line-marker .line-num {
+  position: absolute;
+  left: -54px;
+  width: 36px;
+  text-align: right;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: inherit;
+  color: #9e9e9e;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Guide Appendix (References & Relations) */
+.guide-appendix {
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 0.9em;
+}
+
+.appendix-title {
+  font-size: 1.05em;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: #333333;
+  margin: 0 0 16px 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.appendix-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+
+.appendix-section {
+  flex: 1 1 220px;
+}
+
+.appendix-section h3 {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #444444;
+  margin: 0 0 8px 0;
+  border: none;
+}
+
+.appendix-list {
+  list-style: square;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.appendix-list li {
+  margin-bottom: 4px;
+  color: #333333;
+}
+
+.appendix-list a {
+  color: #1a568c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.appendix-meta {
+  color: #777777;
+  font-size: 0.88em;
+  margin-left: 4px;
+}
+
+.appendix-adherence {
+  color: #555555;
+  font-size: 0.82em;
+  margin-left: 4px;
+}
+
+.appendix-segment {
+  color: #666666;
+  font-style: italic;
+  font-size: 0.85em;
+  margin-left: 6px;
+}
+
+/* Knowledge Graph Overview on Index */
+.knowledge-graph-section {
+  margin-top: 36px;
+}
+
+.knowledge-graph-section h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #111;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.mermaid-container {
+  width: 100%;
+  overflow-x: auto;
+  background: #fbfbfb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px 16px;
+  margin-top: 12px;
+  box-sizing: border-box;
+}
+
+/* Mermaid Diagram Container */
+.mermaid {
+  margin: 16px 0;
+  text-align: center;
+  background: transparent;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 780px) {
+  body {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 18px 20px;
+  }
+
+  .content {
+    margin-left: 0;
+    padding: 24px 20px;
+    max-width: 100%;
+  }
+}
+
+/* Academic Print Styles */
+@media print {
+  body {
+    font-size: 11pt;
+    color: #000000;
+    background: #ffffff;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .content {
+    margin-left: 0 !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  a {
+    color: #000000;
+    text-decoration: underline;
+  }
+
+  table {
+    border-top: 1.5pt solid #000000;
+    border-bottom: 1.5pt solid #000000;
+  }
+
+  th {
+    border-bottom: 1pt solid #000000;
+  }
 }

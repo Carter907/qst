@@ -64,9 +64,9 @@ func downloadKaTeX(destDir string) error {
 	return nil
 }
 
-// downloadMermaid downloads the mermaid ESM module to outDir/assets/vendor/mermaid/mermaid.esm.min.mjs.
+// downloadMermaid downloads the standalone mermaid bundle to outDir/assets/vendor/mermaid/mermaid.min.js.
 func downloadMermaid(destDir string) error {
-	target := filepath.Join(destDir, "mermaid", "mermaid.esm.min.mjs")
+	target := filepath.Join(destDir, "mermaid", "mermaid.min.js")
 	if _, err := os.Stat(target); err == nil {
 		return nil
 	}
@@ -74,7 +74,7 @@ func downloadMermaid(destDir string) error {
 		return err
 	}
 
-	resp, err := http.Get("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")
+	resp, err := http.Get("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js")
 	if err != nil {
 		return err
 	}
