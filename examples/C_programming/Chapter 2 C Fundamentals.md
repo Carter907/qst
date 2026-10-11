@@ -1,7 +1,9 @@
 ---
 prerequisites: [Chapter 1 Introducing C]
 sub_guides:
-- {guide: Writing a Simple C Program, adherence: '', segment: ''}
+    - guide: Writing a Simple C Program
+      adherence: introductory
+      segment: 4-4
 scope: lesson
 tags: [c, chapter2]
 ---

@@ -3,14 +3,14 @@ prerequisites:
     - Compound Logical Expressions
 sub_guides:
     - guide: De Morgan's Laws
-      adherence: ""
-      segment: ""
+      adherence: detailed
+      segment: 3-6
     - guide: Applications of De Morgan's Laws
-      adherence: ""
-      segment: ""
+      adherence: detailed
+      segment: 7-10
     - guide: Cautions of De Morgan's Laws
-      adherence: ""
-      segment: ""
+      adherence: detailed
+      segment: 11-14
 scope: lesson
 tags:
     - logic

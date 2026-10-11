@@ -1,0 +1,40 @@
+title: Conditionals Knowledge Graph
+description: A comprehensive grammatical guide covering clauses, verb forms, and English conditional structures.
+scopes:
+  - definition
+  - description
+  - explanation
+  - lesson
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: false
+strict_coverage: false
+tours:
+  - name: Foundations of Clauses
+    guides:
+      - Clauses
+      - Independent Clauses
+      - Dependent Clauses
+      - If Clause
+      - Main Clause
+      - Conditionals
+  - name: Verb Forms & Tenses
+    guides:
+      - Present Simple
+      - Past Simple
+      - Past Participle
+      - Past Perfect
+      - Modal Verbs
+      - Verb Forms
+  - name: Conditionals Spectrum
+    guides:
+      - Zero Conditional
+      - First Conditional
+      - Second Conditional
+      - Third Conditional
+      - Mixed Conditionals
+      - Understanding Conditionals

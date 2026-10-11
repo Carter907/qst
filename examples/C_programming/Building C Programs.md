@@ -1,7 +1,9 @@
 ---
 prerequisites: []
 sub_guides:
-- {guide: The Compilation Process, adherence: '', segment: ''}
+    - guide: The Compilation Process
+      adherence: introductory
+      segment: 4-4
 scope: explanation
 tags: [c, fundamentals]
 ---

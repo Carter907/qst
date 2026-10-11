@@ -2,20 +2,20 @@
 prerequisites: []
 sub_guides:
     - guide: Present Simple
-      adherence: ""
-      segment: ""
+      adherence: introductory
+      segment: 7-7
     - guide: Past Simple
-      adherence: ""
-      segment: ""
+      adherence: introductory
+      segment: 8-8
     - guide: Past Participle
-      adherence: ""
-      segment: ""
+      adherence: introductory
+      segment: 11-11
     - guide: Past Perfect
-      adherence: ""
-      segment: ""
+      adherence: introductory
+      segment: 12-12
     - guide: Modal Verbs
-      adherence: ""
-      segment: ""
+      adherence: introductory
+      segment: 14-15
 scope: explanation
 tags:
     - grammar

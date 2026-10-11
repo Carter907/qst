@@ -1,7 +1,9 @@
 ---
 prerequisites: []
 sub_guides:
-- {guide: Comment, adherence: '', segment: ''}
+    - guide: Comment
+      adherence: introductory
+      segment: 4-4
 scope: description
 tags: [c, syntax]
 ---

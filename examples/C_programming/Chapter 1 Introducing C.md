@@ -1,7 +1,9 @@
 ---
 prerequisites: []
 sub_guides:
-- {guide: Building C Programs, adherence: '', segment: ''}
+    - guide: Building C Programs
+      adherence: introductory
+      segment: 4-4
 scope: lesson
 tags: [c, chapter1]
 ---

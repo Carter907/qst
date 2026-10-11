@@ -1,0 +1,47 @@
+title: De Morgan's Laws Knowledge Graph
+description: A structured knowledge graph explaining propositional logic, logical equivalence, and De Morgan's Laws.
+scopes:
+  - definition
+  - description
+  - explanation
+  - lesson
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: false
+strict_coverage: false
+tours:
+  - name: Foundations of Logic
+    guides:
+      - Propositions
+      - Negation
+      - Logical AND
+      - Logical OR
+      - Exclusive OR
+      - Truth Tables
+      - Logical Equivalence
+      - Compound Logical Expressions
+  - name: De Morgan's Laws Deep Dive
+    guides:
+      - Logical Equivalence
+      - De Morgan's Laws
+      - Applications of De Morgan's Laws
+      - Cautions of De Morgan's Laws
+      - Understanding De Morgan's Laws
+  - name: Complete Curriculum
+    guides:
+      - Propositions
+      - Negation
+      - Logical AND
+      - Logical OR
+      - Exclusive OR
+      - Truth Tables
+      - Logical Equivalence
+      - Compound Logical Expressions
+      - De Morgan's Laws
+      - Applications of De Morgan's Laws
+      - Cautions of De Morgan's Laws
+      - Understanding De Morgan's Laws

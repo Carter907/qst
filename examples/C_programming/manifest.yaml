@@ -11,9 +11,36 @@ adherences:
   - introductory
   - vague
 relaxed_subguides: false
+require_subguides: false
+strict_coverage: false
 tours:
   - name: Full Course
     guides:
       - Chapter 1 Introducing C
       - Chapter 2 C Fundamentals
+      - Chapter 3 Formatted IO
+  - name: Chapter 1 - Introducing C
+    guides:
+      - Source Code
+      - Compiler
+      - The Compilation Process
+      - Building C Programs
+      - Chapter 1 Introducing C
+  - name: Chapter 2 - C Fundamentals
+    guides:
+      - Comment
+      - C Comments
+      - Variable
+      - Assignment
+      - Variables and Assignment
+      - Writing a Simple C Program
+      - Chapter 2 C Fundamentals
+  - name: Chapter 3 - Formatted IO
+    guides:
+      - Format Specifier
+      - Printf
+      - Printf Function
+      - Scanf
+      - Scanf Function
+      - Formatted Input and Output
       - Chapter 3 Formatted IO

@@ -1,0 +1,38 @@
+```mermaid
+graph TD
+    applications_of_de_morgan's_laws["Applications of De Morgan's Laws"]
+    cautions_of_de_morgan's_laws["Cautions of De Morgan's Laws"]
+    compound_logical_expressions["Compound Logical Expressions"]
+    de_morgan's_laws["De Morgan's Laws"]
+    exclusive_or["Exclusive OR"]
+    logical_and["Logical AND"]
+    logical_equivalence["Logical Equivalence"]
+    logical_or["Logical OR"]
+    negation["Negation"]
+    propositions["Propositions"]
+    truth_tables["Truth Tables"]
+    understanding_de_morgan's_laws["Understanding De Morgan's Laws"]
+    de_morgan's_laws --> applications_of_de_morgan's_laws
+    de_morgan's_laws --> cautions_of_de_morgan's_laws
+    compound_logical_expressions -.-> logical_equivalence
+    compound_logical_expressions -.-> truth_tables
+    compound_logical_expressions -.-> logical_and
+    compound_logical_expressions -.-> logical_or
+    compound_logical_expressions -.-> exclusive_or
+    compound_logical_expressions -.-> negation
+    logical_equivalence --> de_morgan's_laws
+    logical_and --> de_morgan's_laws
+    logical_or --> de_morgan's_laws
+    negation --> de_morgan's_laws
+    logical_or --> exclusive_or
+    logical_and --> exclusive_or
+    propositions --> logical_and
+    truth_tables --> logical_equivalence
+    propositions --> logical_or
+    propositions --> negation
+    propositions --> truth_tables
+    compound_logical_expressions --> understanding_de_morgan's_laws
+    understanding_de_morgan's_laws -.-> de_morgan's_laws
+    understanding_de_morgan's_laws -.-> applications_of_de_morgan's_laws
+    understanding_de_morgan's_laws -.-> cautions_of_de_morgan's_laws
+```

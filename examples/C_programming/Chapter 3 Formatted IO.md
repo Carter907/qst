@@ -1,7 +1,9 @@
 ---
 prerequisites: [Chapter 2 C Fundamentals]
 sub_guides:
-- {guide: Formatted Input and Output, adherence: '', segment: ''}
+    - guide: Formatted Input and Output
+      adherence: introductory
+      segment: 4-4
 scope: lesson
 tags: [c, chapter3]
 ---
