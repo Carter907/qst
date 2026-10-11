@@ -3,11 +3,13 @@ package graph
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
 
-// CheckAcyclic checks if the knowledge graph is acyclic using DFS
+// CheckAcyclic checks if the knowledge graph is acyclic using DFS.
+// If a cycle is detected, it formats the complete cycle path in the error message.
 func CheckAcyclic(guides map[string]Guide) error {
 	const (
 		unvisited = 0
@@ -16,10 +18,15 @@ func CheckAcyclic(guides map[string]Guide) error {
 	)
 
 	state := make(map[string]int, len(guides))
+	var path []string
 
 	var dfs func(id string) error
 	dfs = func(id string) error {
 		state[id] = visiting
+		path = append(path, id)
+		defer func() {
+			path = path[:len(path)-1]
+		}()
 
 		if guide, exists := guides[id]; exists {
 			neighbors := append([]string(nil), guide.Metadata.Prerequisites...)
@@ -32,7 +39,20 @@ func CheckAcyclic(guides map[string]Guide) error {
 					continue
 				}
 				if state[neighborID] == visiting {
-					return fmt.Errorf("cycle detected in graph involving guide '%s'", neighborID)
+					cycleStart := -1
+					for i, node := range path {
+						if node == neighborID {
+							cycleStart = i
+							break
+						}
+					}
+					var cycleChain []string
+					if cycleStart != -1 {
+						cycleChain = append(append([]string(nil), path[cycleStart:]...), neighborID)
+					} else {
+						cycleChain = []string{neighborID, neighborID}
+					}
+					return fmt.Errorf("cycle detected in graph: %s", strings.Join(cycleChain, " -> "))
 				}
 				if state[neighborID] == unvisited {
 					if err := dfs(neighborID); err != nil {
@@ -46,7 +66,13 @@ func CheckAcyclic(guides map[string]Guide) error {
 		return nil
 	}
 
+	ids := make([]string, 0, len(guides))
 	for id := range guides {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
 		if state[id] == unvisited {
 			if err := dfs(id); err != nil {
 				return err

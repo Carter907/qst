@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -220,9 +221,10 @@ func TestValidateGraph(t *testing.T) {
 
 func TestCheckAcyclic(t *testing.T) {
 	tests := []struct {
-		name    string
-		guides  map[string]Guide
-		wantErr bool
+		name        string
+		guides      map[string]Guide
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name:    "empty graph",
@@ -260,7 +262,8 @@ func TestCheckAcyclic(t *testing.T) {
 			guides: map[string]Guide{
 				"a": {ID: "a", HasContent: true, Metadata: GuideMetadata{Prerequisites: []string{"a"}}},
 			},
-			wantErr: true,
+			wantErr:     true,
+			errContains: "cycle detected in graph: a -> a",
 		},
 		{
 			name: "sub_guide cycle",
@@ -268,7 +271,8 @@ func TestCheckAcyclic(t *testing.T) {
 				"a": {ID: "a", HasContent: true, Metadata: GuideMetadata{SubGuides: []SubGuideRelation{{Guide: "b"}}}},
 				"b": {ID: "b", HasContent: true, Metadata: GuideMetadata{SubGuides: []SubGuideRelation{{Guide: "a"}}}},
 			},
-			wantErr: true,
+			wantErr:     true,
+			errContains: "cycle detected in graph: a -> b -> a",
 		},
 		{
 			name: "mixed prerequisites and sub_guides cycle",
@@ -277,7 +281,8 @@ func TestCheckAcyclic(t *testing.T) {
 				"b": {ID: "b", HasContent: true, Metadata: GuideMetadata{SubGuides: []SubGuideRelation{{Guide: "c"}}}},
 				"c": {ID: "c", HasContent: true, Metadata: GuideMetadata{Prerequisites: []string{"a"}}},
 			},
-			wantErr: true,
+			wantErr:     true,
+			errContains: "cycle detected in graph: a -> b -> c -> a",
 		},
 	}
 
@@ -286,6 +291,9 @@ func TestCheckAcyclic(t *testing.T) {
 			err := CheckAcyclic(tt.guides)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckAcyclic() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.errContains != "" && (err == nil || !strings.Contains(err.Error(), tt.errContains)) {
+				t.Errorf("expected error containing %q, got %v", tt.errContains, err)
 			}
 		})
 	}

@@ -3,6 +3,7 @@ package graph
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,63 @@ No frontmatter at all.
 		}
 		if cfg.Title != "Fallback Test" {
 			t.Errorf("expected Title 'Fallback Test', got %q", cfg.Title)
+		}
+	})
+
+	t.Run("recursive subdirectory parsing", func(t *testing.T) {
+		graphDir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(graphDir, "ch1"), 0755); err != nil {
+			t.Fatalf("failed to create ch1: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(graphDir, "ch2"), 0755); err != nil {
+			t.Fatalf("failed to create ch2: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(graphDir, "public"), 0755); err != nil {
+			t.Fatalf("failed to create public: %v", err)
+		}
+
+		g1 := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# G1\n"
+		g2 := "---\nscope: description\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# G2\n"
+		pubG := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# Pub\n"
+
+		_ = os.WriteFile(filepath.Join(graphDir, "ch1", "Guide1.md"), []byte(g1), 0644)
+		_ = os.WriteFile(filepath.Join(graphDir, "ch2", "Guide2.md"), []byte(g2), 0644)
+		_ = os.WriteFile(filepath.Join(graphDir, "public", "Ignored.md"), []byte(pubG), 0644)
+		_ = os.WriteFile(filepath.Join(graphDir, ".hidden.md"), []byte(pubG), 0644)
+
+		guides, err := ParseGraph(graphDir)
+		if err != nil {
+			t.Fatalf("ParseGraph() unexpected error: %v", err)
+		}
+		if len(guides) != 2 {
+			t.Errorf("expected 2 guides parsed from subdirectories, got %d", len(guides))
+		}
+		if _, ok := guides["Guide1"]; !ok {
+			t.Errorf("expected Guide1 in guides map")
+		}
+		if _, ok := guides["Guide2"]; !ok {
+			t.Errorf("expected Guide2 in guides map")
+		}
+		if _, ok := guides["Ignored"]; ok {
+			t.Errorf("expected public/Ignored.md to be excluded")
+		}
+	})
+
+	t.Run("duplicate guide id error", func(t *testing.T) {
+		graphDir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(graphDir, "folderA"), 0755)
+		_ = os.MkdirAll(filepath.Join(graphDir, "folderB"), 0755)
+
+		g := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# Dup\n"
+		_ = os.WriteFile(filepath.Join(graphDir, "folderA", "SameID.md"), []byte(g), 0644)
+		_ = os.WriteFile(filepath.Join(graphDir, "folderB", "SameID.md"), []byte(g), 0644)
+
+		_, err := ParseGraph(graphDir)
+		if err == nil {
+			t.Fatal("expected error for duplicate guide IDs across folders, got nil")
+		}
+		if !strings.Contains(err.Error(), "duplicate guide ID 'SameID'") {
+			t.Errorf("expected duplicate guide ID error message, got: %v", err)
 		}
 	})
 }

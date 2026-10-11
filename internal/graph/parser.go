@@ -9,30 +9,55 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// ParseGraph reads all markdown files in the specified directory,
+// ParseGraph reads all markdown files in the specified directory recursively,
 // extracts their frontmatter, and returns a map of guide IDs to Guide structs.
 func ParseGraph(dirPath string) (map[string]Guide, error) {
-	guides := make(map[string]Guide)
-
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
+	cleanDir := filepath.Clean(dirPath)
+	if _, err := os.Stat(cleanDir); err != nil {
 		return nil, err
 	}
 
-	for _, entry := range entries {
+	guides := make(map[string]Guide)
 
-		// ignore all other files
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
-			continue
+	err := filepath.Walk(cleanDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
 
-		path := filepath.Join(dirPath, entry.Name())
+		if info.IsDir() {
+			base := info.Name()
+			// Skip hidden directories (e.g. .git) and build output (public)
+			if strings.HasPrefix(base, ".") || base == "public" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Only parse markdown files
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+
+		// Skip hidden markdown files
+		if strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
 		guide, err := ParseGuide(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+			return fmt.Errorf("failed to parse %s: %w", path, err)
+		}
+
+		if existing, exists := guides[guide.ID]; exists {
+			return fmt.Errorf("duplicate guide ID '%s': found in %s and %s", guide.ID, existing.Path, path)
 		}
 
 		guides[guide.ID] = guide
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return guides, nil
