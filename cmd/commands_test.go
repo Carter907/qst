@@ -327,3 +327,57 @@ func TestStatsCommand(t *testing.T) {
 	}
 }
 
+func TestFormAndFreeCommands(t *testing.T) {
+	srcDir := setupTestGraph(t)
+	kngPath := filepath.Join(t.TempDir(), "packaged.kng")
+
+	// 1. qst form with -o
+	outForm, exitCode, err := executeCommandWithExit("form", srcDir, "-o", kngPath)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("form failed (code: %d, err: %v, out: %s)", exitCode, err, outForm)
+	}
+	if !strings.Contains(outForm, "Successfully packaged 3 guides") {
+		t.Errorf("expected 'Successfully packaged 3 guides', got: %s", outForm)
+	}
+	if _, err := os.Stat(kngPath); err != nil {
+		t.Fatalf(".kng archive was not created at %s: %v", kngPath, err)
+	}
+
+	// 2. qst free with custom destination
+	unpackedDir := filepath.Join(t.TempDir(), "unpacked")
+	outFree, exitCode, err := executeCommandWithExit("free", kngPath, unpackedDir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("free failed (code: %d, err: %v, out: %s)", exitCode, err, outFree)
+	}
+	if !strings.Contains(outFree, "Successfully unarchived to") {
+		t.Errorf("expected 'Successfully unarchived to', got: %s", outFree)
+	}
+
+	// Verify unarchived manifest and guides
+	cfg, err := graph.ParseConfig(unpackedDir)
+	if err != nil {
+		t.Fatalf("unarchived graph failed ParseConfig: %v", err)
+	}
+	if cfg.Title != "Test Graph" {
+		t.Errorf("expected Title 'Test Graph', got %q", cfg.Title)
+	}
+
+	guides, err := graph.ParseGraph(unpackedDir)
+	if err != nil {
+		t.Fatalf("unarchived graph failed ParseGraph: %v", err)
+	}
+	if len(guides) != 3 {
+		t.Errorf("expected 3 guides in unarchived graph, got %d", len(guides))
+	}
+
+	// 3. qst free with invalid extension
+	outBad, exitCode, _ := executeCommandWithExit("free", "invalid.zip")
+	if exitCode != 1 {
+		t.Errorf("free expected exit code 1 for invalid extension, got %d", exitCode)
+	}
+	if !strings.Contains(outBad, "Missing required file extension (.kng)") {
+		t.Errorf("expected error message for missing extension, got: %s", outBad)
+	}
+}
+
+

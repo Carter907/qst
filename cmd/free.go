@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,43 +9,56 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var freeOutput string
+
 var freeCmd = &cobra.Command{
-	Use:   "free",
+	Use:   "free <archive.kng> [destination]",
 	Short: "Unzip a .kng file so you can read or edit the knowledge graph",
-	Long:  "Free is how you start learning new knowledge. Unzipped archives are placed in a directory with the same name as the file. All markdown guides are losslessly decompressed.",
-	Example: `# Free the Knowledge
-qst free my-graph.kng`,
+	Long:  "Free is how you start learning new knowledge. Unzipped archives are placed in a directory with the same name as the file (or a specified destination). All markdown guides, manifests, and assets are losslessly decompressed.",
+	Example: `# Free the Knowledge to default directory
+qst free my-graph.kng
+
+# Free to a custom destination directory
+qst free my-graph.kng custom_dir
+qst free my-graph.kng -o custom_dir`,
+	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println("Please specify a .kng file to unpack")
-			os.Exit(1)
-		}
 		inputKng := args[0]
 		ext := filepath.Ext(inputKng)
 		if ext != ".kng" {
-			fmt.Println("Missing required file extension (.kng)")
-			os.Exit(1)
+			cmd.PrintErrln("Missing required file extension (.kng)")
+			exitFunc(1)
+			return
 		}
 
-		filename := filepath.Base(inputKng)
-		destDir := strings.TrimSuffix(filename, ext)
+		destDir := freeOutput
+		if destDir == "" && len(args) > 1 {
+			destDir = args[1]
+		}
+		if destDir == "" {
+			filename := filepath.Base(inputKng)
+			destDir = strings.TrimSuffix(filename, ext)
+		}
 
 		err := os.MkdirAll(destDir, 0o755)
 		if err != nil {
-			fmt.Printf("Error creating directory: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error creating directory: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		err = graph.UnarchiveGraph(inputKng, destDir)
 		if err != nil {
-			fmt.Printf("Error unarchiving graph: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error unarchiving graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
-		fmt.Printf("Successfully unarchived to %s\n", destDir)
+		cmd.Printf("Successfully unarchived to %s\n", destDir)
 	},
 }
 
 func init() {
+	freeCmd.Flags().StringVarP(&freeOutput, "output", "o", "", "Destination directory for unpacked graph (default: <archive-name>)")
 	rootCmd.AddCommand(freeCmd)
 }
