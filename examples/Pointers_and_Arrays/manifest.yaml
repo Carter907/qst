@@ -1,0 +1,121 @@
+title: Pointers and Arrays Knowledge Graph
+description: A comprehensive knowledge graph covering pointer fundamentals, function communication, pointer arithmetic, and array relationships from Chapters 11 and 12 of C Programming A Modern Approach.
+scopes:
+  - definition
+  - description
+  - explanation
+  - lesson
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: true
+strict_coverage: false
+tours:
+  - name: Full Course
+    guides:
+      - Memory Address
+      - Byte
+      - Pointer Variable
+      - Memory Address and Byte Organization
+      - Pointer Variable Declaration
+      - Fundamentals of Pointers
+      - Address Operator
+      - Indirection Operator
+      - Pointer Assignment
+      - Address and Indirection Operations
+      - Pointer Assignment and Aliasing
+      - Pointer Operators and Assignment
+      - Pass by Reference
+      - Const Pointer
+      - Dangling Pointer
+      - Pointers as Function Arguments
+      - Const Pointer Parameters
+      - Returning Pointers from Functions
+      - Pointers in Functions
+      - Chapter 11 Pointers
+      - Pointer Arithmetic
+      - Pointer Difference
+      - Pointer Comparison
+      - Pointer Offset Arithmetic
+      - Pointer Comparison and Subtraction
+      - Pointer Arithmetic Operations
+      - Past The End Pointer
+      - Pointer Increment Idiom
+      - Pointer Loop Processing
+      - Compound Indirection and Increment
+      - Array Traversal with Pointers
+      - Array Decay
+      - Array Subscript Equivalence
+      - Array Parameter
+      - Array Decay to Pointer
+      - Subscript and Pointer Equivalence
+      - Array Parameters as Pointers
+      - The Array-Pointer Relationship
+      - Row Major Order
+      - Pointer to Array
+      - Multidimensional Array Layout and Traversal
+      - Pointers to Arrays
+      - Pointers with Multidimensional Arrays
+      - Chapter 12 Pointers and Arrays
+  - name: Chapter 11 - Pointers
+    guides:
+      - Memory Address
+      - Byte
+      - Pointer Variable
+      - Address Operator
+      - Indirection Operator
+      - Pointer Assignment
+      - Pass by Reference
+      - Const Pointer
+      - Dangling Pointer
+      - Memory Address and Byte Organization
+      - Pointer Variable Declaration
+      - Address and Indirection Operations
+      - Pointer Assignment and Aliasing
+      - Pointers as Function Arguments
+      - Const Pointer Parameters
+      - Returning Pointers from Functions
+      - Fundamentals of Pointers
+      - Pointer Operators and Assignment
+      - Pointers in Functions
+      - Chapter 11 Pointers
+  - name: Chapter 12 - Pointers and Arrays
+    guides:
+      - Pointer Arithmetic
+      - Pointer Difference
+      - Pointer Comparison
+      - Past The End Pointer
+      - Pointer Increment Idiom
+      - Array Decay
+      - Array Subscript Equivalence
+      - Array Parameter
+      - Row Major Order
+      - Pointer to Array
+      - Pointer Offset Arithmetic
+      - Pointer Comparison and Subtraction
+      - Pointer Loop Processing
+      - Compound Indirection and Increment
+      - Array Decay to Pointer
+      - Subscript and Pointer Equivalence
+      - Array Parameters as Pointers
+      - Multidimensional Array Layout and Traversal
+      - Pointers to Arrays
+      - Pointer Arithmetic Operations
+      - Array Traversal with Pointers
+      - The Array-Pointer Relationship
+      - Pointers with Multidimensional Arrays
+      - Chapter 12 Pointers and Arrays
+  - name: Pointer Arithmetic & Array Idioms
+    guides:
+      - Pointer Arithmetic
+      - Pointer Difference
+      - Pointer Increment Idiom
+      - Array Decay
+      - Array Subscript Equivalence
+      - Pointer Offset Arithmetic
+      - Compound Indirection and Increment
+      - Subscript and Pointer Equivalence
+      - The Array-Pointer Relationship
