@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -27,28 +25,32 @@ qst validate my_knowledge_graph_dir/`,
 
 		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			fmt.Printf("Error parsing graph: %v\n", err)
-			os.Exit(0)
+			cmd.PrintErrf("Error parsing graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			os.Exit(0)
+			cmd.PrintErrf("Error loading config: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		err = graph.ValidateGraph(guides, config)
 		if err != nil {
-			fmt.Printf("Validation failed:\n%v\n", err)
-			os.Exit(0)
+			cmd.PrintErrf("Validation failed:\n%v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		if _, err := filepath.Abs(dir); err != nil {
-			fmt.Printf("Error resolving path: %v\n", err)
-			os.Exit(0)
+			cmd.PrintErrf("Error resolving path: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
-		fmt.Printf("Knowledge graph parses and is valid with %d guides in %s\n", len(guides), dir)
+		cmd.Printf("Knowledge graph parses and is valid with %d guides in %s\n", len(guides), dir)
 	},
 }
 

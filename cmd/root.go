@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var exitFunc = os.Exit
+
 var rootCmd = &cobra.Command{
 	Use:   "qst",
 	Short: "A lossless compression and formatting tool for knowledge",

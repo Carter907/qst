@@ -11,6 +11,7 @@ qst list [directory] [flags]
 ```
   -d, --dir string     Knowledge graph directory (default ".")
   -h, --help           help for list
+  -l, --long           Display detailed list with scope, tags, and relationship counts
       --scope string   Filter by scope
       --tags strings   Filter by tags (comma separated)
 ```

@@ -210,3 +210,120 @@ func TestLinkAndUnlinkSubguide(t *testing.T) {
 		t.Fatalf("expected Def 1 removed from subguides, got: %v", guide.Metadata.SubGuides)
 	}
 }
+
+func executeCommandWithExit(args ...string) (string, int, error) {
+	var exitCode int
+	oldExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = oldExit }()
+
+	out, err := executeCommand(args...)
+	return out, exitCode, err
+}
+
+func TestValidateCommand(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// Valid graph
+	out, exitCode, err := executeCommandWithExit("validate", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("validate expected success (0), got code: %d, err: %v, out: %s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "valid with 3 guides") {
+		t.Errorf("expected success message in validate output, got: %s", out)
+	}
+
+	// Invalid graph: missing manifest
+	emptyDir := t.TempDir()
+	out, exitCode, _ = executeCommandWithExit("validate", emptyDir)
+	if exitCode != 1 {
+		t.Errorf("validate expected failure code 1 for missing manifest, got %d (out: %s)", exitCode, out)
+	}
+	if !strings.Contains(out, "Error loading config") {
+		t.Errorf("expected 'Error loading config' in error output, got: %s", out)
+	}
+}
+
+func TestListCommand(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// Default: alphabetically sorted IDs
+	out, err := executeCommand("list", "-d", dir)
+	if err != nil {
+		t.Fatalf("list error: %v, out: %s", err, out)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	expected := []string{"Def 1", "Def 2", "Desc 1"}
+	if len(lines) != len(expected) {
+		t.Fatalf("expected %d guides in list, got %d: %v", len(expected), len(lines), lines)
+	}
+	for i, exp := range expected {
+		if lines[i] != exp {
+			t.Errorf("expected line %d to be %q, got %q", i, exp, lines[i])
+		}
+	}
+
+	// Scope filter
+	outScope, err := executeCommand("list", "-d", dir, "--scope", "definition")
+	if err != nil {
+		t.Fatalf("list --scope error: %v, out: %s", err, outScope)
+	}
+	if strings.Contains(outScope, "Desc 1") || !strings.Contains(outScope, "Def 1") || !strings.Contains(outScope, "Def 2") {
+		t.Errorf("unexpected filtered list output: %s", outScope)
+	}
+
+	// Long list (-l): aligned table view
+	outLong, err := executeCommand("list", "-d", dir, "-l")
+	if err != nil {
+		t.Fatalf("list -l error: %v, out: %s", err, outLong)
+	}
+	if !strings.Contains(outLong, "GUIDE") || !strings.Contains(outLong, "SCOPE") || !strings.Contains(outLong, "PREREQS") {
+		t.Errorf("expected table header in list -l, got: %s", outLong)
+	}
+	if !strings.Contains(outLong, "Def 1") || !strings.Contains(outLong, "definition") {
+		t.Errorf("expected Def 1 row in list -l, got: %s", outLong)
+	}
+}
+
+func TestStatsCommand(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// Valid stats
+	out, exitCode, err := executeCommandWithExit("stats", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("stats unexpected exit: %d, err: %v, out: %s", exitCode, err, out)
+	}
+
+	sections := []string{
+		"Graph Statistics: Test Graph",
+		"Overview:",
+		"Total Guides:          3",
+		"Scope Distribution:",
+		"definition:",
+		"description:",
+		"Graph Depth & Learning Paths:",
+		"Prerequisite Depth:",
+		"Tour Coverage:",
+		"Total Tours:",
+		"Content & Subguide Coverage:",
+		"Total Body Lines:",
+	}
+	for _, s := range sections {
+		if !strings.Contains(out, s) {
+			t.Errorf("expected stats output to contain %q, but got:\n%s", s, out)
+		}
+	}
+
+	// Missing manifest should exit with code 1
+	emptyDir := t.TempDir()
+	out, exitCode, _ = executeCommandWithExit("stats", emptyDir)
+	if exitCode != 1 {
+		t.Errorf("stats expected exit code 1 for missing manifest, got %d (out: %s)", exitCode, out)
+	}
+	if !strings.Contains(out, "Error loading config") {
+		t.Errorf("expected 'Error loading config' in stats output, got: %s", out)
+	}
+}
+
