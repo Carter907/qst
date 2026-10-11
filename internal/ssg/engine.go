@@ -151,7 +151,9 @@ func (r *LineNumRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer)
 func (r *LineNumRenderer) renderLineNum(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		ln := node.(*LineNumNode)
-		fmt.Fprintf(w, `<span class="line-marker" id="L%d" data-line="%d"><span class="line-num">%d</span></span>`, ln.Line, ln.Line, ln.Line)
+		if _, err := fmt.Fprintf(w, `<span class="line-marker" id="L%d" data-line="%d"><span class="line-num">%d</span></span>`, ln.Line, ln.Line, ln.Line); err != nil {
+			return ast.WalkStop, err
+		}
 	}
 	return ast.WalkContinue, nil
 }
