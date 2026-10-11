@@ -1,13 +1,30 @@
 ## qst link
 
-Link a subguide to an existing guide.
+Link a subguide or prerequisite to an existing guide.
 
 ### Synopsis
 
-Modifies an existing parent guide's frontmatter to add a new subguide relation with adherence and segment.
+Link allows you to connect guides together in the knowledge graph.
+- Use --guide to link a hierarchical subguide (with --adherence and optional --segment).
+  If the subguide is already linked, its adherence and segment will be updated in place.
+- Use --prereq to link a horizontal prerequisite of the exact same scope.
+- Use --interactive (-i) for interactive guided selection with constraint checking.
 
 ```
-qst link [parent-guide] [flags]
+qst link [guide] [flags]
+```
+
+### Examples
+
+```
+# Link a subguide with adherence and line segment
+qst link "The Compilation Process" --guide "Compiler" --adherence introductory --segment 6-6
+
+# Link a prerequisite of identical scope
+qst link "Scanf Function" --prereq "Printf Function"
+
+# Interactive link selection
+qst link "Variables and Assignment" -i
 ```
 
 ### Options
@@ -17,8 +34,9 @@ qst link [parent-guide] [flags]
   -d, --dir string         Knowledge graph directory (default ".")
       --guide string       Name of the subguide to link
   -h, --help               help for link
-  -i, --interactive        Interactive mode
-      --segment string     Segment of the subguide relation
+  -i, --interactive        Interactive mode with guided selection
+      --prereq string      Name of the prerequisite guide to link
+      --segment string     Segment line range in body (e.g. 4-4)
 ```
 
 ### SEE ALSO
