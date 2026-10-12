@@ -286,4 +286,20 @@ Body text for Guide B.
 	if !strings.Contains(idxHtml, `click guideb href "sub/GuideB.html"`) {
 		t.Errorf("index.html mermaid diagram missing click href for sub/GuideB")
 	}
+
+	// 4. Verify Pan & Zoom script in index.html and styles in style.css
+	if !strings.Contains(idxHtml, "setupPanZoom") {
+		t.Errorf("index.html missing setupPanZoom client script")
+	}
+	cssBytes, err := os.ReadFile(filepath.Join(outDir, "assets", "style.css"))
+	if err != nil {
+		t.Fatalf("Failed to read style.css: %v", err)
+	}
+	cssStr := string(cssBytes)
+	if !strings.Contains(cssStr, ".mermaid-viewport") {
+		t.Errorf("style.css missing .mermaid-viewport styles")
+	}
+	if !strings.Contains(cssStr, ".mermaid-toolbar") {
+		t.Errorf("style.css missing .mermaid-toolbar styles")
+	}
 }
