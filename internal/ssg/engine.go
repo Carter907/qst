@@ -484,7 +484,7 @@ func BuildSite(dirPath string, outDir string) error {
 
 	// 8. Generate Index Page
 	indexSidebar := buildSidebar("index.html", "", config, guideFiles, filesByID)
-	indexMermaid := generateIndexMermaid(guideFiles, filesByID)
+	indexMermaid := generateIndexMermaid(config, guideFiles, filesByID)
 	indexData := IndexPageData{
 		Title:        config.Title,
 		Description:  config.Description,

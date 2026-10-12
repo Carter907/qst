@@ -265,6 +265,15 @@ Body text for Guide B.
 	if !strings.Contains(idxHtml, `class="language-mermaid"`) {
 		t.Errorf("index.html missing mermaid code block")
 	}
+	if !strings.Contains(idxHtml, `subgraph scope_explanation ["Scope: explanation"]`) {
+		t.Errorf("index.html mermaid diagram missing subgraph for explanation")
+	}
+	if !strings.Contains(idxHtml, `subgraph scope_definition ["Scope: definition"]`) {
+		t.Errorf("index.html mermaid diagram missing subgraph for definition")
+	}
+	if !strings.Contains(idxHtml, "direction LR") {
+		t.Errorf("index.html mermaid diagram missing direction LR")
+	}
 	if !strings.Contains(idxHtml, "guidea --> guideb") {
 		t.Errorf("index.html mermaid diagram missing prerequisite edge 'guidea --> guideb'")
 	}
