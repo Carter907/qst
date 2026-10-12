@@ -1,6 +1,6 @@
 # File Format
 
-Knowledge graphs are archived into `.kng` files which are zip archives containing markdown files (`.md`) denoted as "Guides". These guides have a particular format that makes them ideal for housing and structuring knowledge in a Directed Acyclic Graph (DAG).
+Knowledge graphs are archived into `.kng` files which are zip archives containing markdown files (`.md`) denoted as "Guides". These guides have a particular format that makes them ideal for housing and structuring knowledge in a Directed Acyclic Graph (DAG). Guides can be located at the root of the knowledge graph or organized cleanly into nested subdirectories (e.g. `subtopic/Guide.md`).
 
 ## Guide Metadata
 
@@ -47,12 +47,17 @@ Tags are subjects or topic descriptors that summarize the content of the entire 
 
 ### Title
 
-The title of a guide is defined by its file name.
+The title of a guide is defined by its file name (excluding the `.md` extension).
 
+### Body Formatting & Rich Content
+
+The body of a guide supports standard GitHub Flavored Markdown (GFM) as well as rich academic notation:
+- **LaTeX Mathematics**: Inline formulas using `$formula$` and block display equations using `$$equation$$` (rendered via local KaTeX in static site builds).
+- **Mermaid Diagrams**: Code blocks marked with ` ```mermaid ` are rendered as interactive vector diagrams in the static site generator.
 
 ## Knowledge Graph Metadata and Configuration
 
-At the root of all knowledge graphs is a `manifest.yaml` file, which includes all constraint configuration and metadata of the knowledge graph.
+At the root of all knowledge graphs is a `manifest.yaml` file (or fallback `quest.yaml`), which includes all constraint configuration and metadata of the knowledge graph.
 
 ### Descriptive Properties
 
@@ -76,7 +81,7 @@ An ordered list defining the valid "sizes" or hierarchical levels of guides, ord
 
 Adherence is a measure of fidelity: it defines how closely and deeply a parent guide rewrites or summarizes a sub-guide in its own body text.
 
-### Constriants
+### Constraints
 
 #### `relaxed_subguides`
 
