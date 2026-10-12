@@ -35,11 +35,17 @@
       </div>
 
       {{ if .Sidebar.Tours }}
-      <div class="sidebar-section">
-        <h3 class="sidebar-heading">Tours</h3>
+      <div class="sidebar-section sidebar-section-tours">
+        <h3 class="sidebar-heading">
+          <span class="sidebar-heading-accent"></span>
+          <span class="sidebar-heading-text">Tours</span>
+        </h3>
         {{ range .Sidebar.Tours }}
-        <details class="sidebar-tour-group" open>
+        <details class="sidebar-tour-group" data-group-id="tour-{{ .Name }}">
           <summary class="sidebar-tour-summary">
+            <svg class="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 4 10 8 6 12"></polyline>
+            </svg>
             <span class="sidebar-tour-name">{{ .Name }}</span>
             <span class="sidebar-count">({{ len .Guides }})</span>
           </summary>
@@ -56,11 +62,17 @@
       {{ end }}
 
       {{ if .Sidebar.ScopeGroups }}
-      <div class="sidebar-section">
-        <h3 class="sidebar-heading">Scopes</h3>
+      <div class="sidebar-section sidebar-section-scopes">
+        <h3 class="sidebar-heading">
+          <span class="sidebar-heading-accent"></span>
+          <span class="sidebar-heading-text">Scopes</span>
+        </h3>
         {{ range .Sidebar.ScopeGroups }}
-        <details class="sidebar-scope-group" open>
+        <details class="sidebar-scope-group" data-group-id="scope-{{ .Scope }}">
           <summary class="sidebar-scope-title">
+            <svg class="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 4 10 8 6 12"></polyline>
+            </svg>
             <span class="sidebar-scope-name">{{ .Scope }}</span>
             <span class="sidebar-count">({{ len .Guides }})</span>
           </summary>
@@ -76,6 +88,32 @@
       </div>
       {{ end }}
     </aside>
+    <script>
+      (function () {
+        try {
+          const STORAGE_KEY = "qst_sidebar_open_groups";
+          const saved = sessionStorage.getItem(STORAGE_KEY);
+          const openGroups = new Set(saved ? JSON.parse(saved) : []);
+
+          document.querySelectorAll(".sidebar details[data-group-id]").forEach((el) => {
+            const id = el.dataset.groupId;
+            if (openGroups.has(id)) {
+              el.open = true;
+            }
+            el.addEventListener("toggle", () => {
+              if (el.open) {
+                openGroups.add(id);
+              } else {
+                openGroups.delete(id);
+              }
+              try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(openGroups)));
+              } catch (_) {}
+            });
+          });
+        } catch (_) {}
+      })();
+    </script>
     <div class="content">{{ template "content" . }}</div>
 
     <script src="{{ .RelativeRoot }}assets/vendor/mermaid/mermaid.min.js"></script>

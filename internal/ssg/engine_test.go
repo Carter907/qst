@@ -195,8 +195,26 @@ Body text for Guide B.
 	if !strings.Contains(guideAHtml, "<details class=\"sidebar-tour-group\"") {
 		t.Errorf("GuideA.html sidebar missing collapsible tour groups")
 	}
+	if strings.Contains(guideAHtml, "<details class=\"sidebar-tour-group\" open") {
+		t.Errorf("GuideA.html sidebar tour groups should be closed by default")
+	}
 	if !strings.Contains(guideAHtml, "<details class=\"sidebar-scope-group\"") {
 		t.Errorf("GuideA.html sidebar missing scope groups")
+	}
+	if strings.Contains(guideAHtml, "<details class=\"sidebar-scope-group\" open") {
+		t.Errorf("GuideA.html sidebar scope groups should be closed by default")
+	}
+	if !strings.Contains(guideAHtml, "sidebar-section-tours") || !strings.Contains(guideAHtml, "sidebar-section-scopes") {
+		t.Errorf("GuideA.html sidebar missing section classes for tours or scopes")
+	}
+	if !strings.Contains(guideAHtml, `data-group-id="tour-Core Tour"`) {
+		t.Errorf("GuideA.html sidebar missing data-group-id for Core Tour")
+	}
+	if !strings.Contains(guideAHtml, `data-group-id="scope-explanation"`) {
+		t.Errorf("GuideA.html sidebar missing data-group-id for explanation scope")
+	}
+	if !strings.Contains(guideAHtml, "qst_sidebar_open_groups") {
+		t.Errorf("GuideA.html missing sidebar sessionStorage persistence script")
 	}
 	if !strings.Contains(guideAHtml, "class=\"sidebar-item active\"") {
 		t.Errorf("GuideA.html sidebar missing active class for GuideA")
@@ -244,6 +262,9 @@ Body text for Guide B.
 	// Issue 4: Nested Tour in Sidebar & clean body
 	if !strings.Contains(guideBHtml, "<details class=\"sidebar-tour-group\"") {
 		t.Errorf("sub/GuideB.html sidebar missing collapsible tour groups")
+	}
+	if strings.Contains(guideBHtml, "<details class=\"sidebar-tour-group\" open") {
+		t.Errorf("sub/GuideB.html sidebar tour groups should be closed by default")
 	}
 	if !strings.Contains(guideBHtml, "href=\"../GuideA.html\"") {
 		t.Errorf("sub/GuideB.html sidebar should link to ../GuideA.html")
