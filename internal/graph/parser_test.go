@@ -162,4 +162,22 @@ No frontmatter at all.
 			t.Errorf("expected duplicate guide ID error message, got: %v", err)
 		}
 	})
+
+	t.Run("parse graph current directory dot", func(t *testing.T) {
+		graphDir := t.TempDir()
+		g := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# Current Dir\n"
+		_ = os.WriteFile(filepath.Join(graphDir, "CurrentGuide.md"), []byte(g), 0644)
+
+		t.Chdir(graphDir)
+		guides, err := ParseGraph(".")
+		if err != nil {
+			t.Fatalf("ParseGraph('.') unexpected error: %v", err)
+		}
+		if len(guides) != 1 {
+			t.Fatalf("expected 1 guide when parsing '.', got %d", len(guides))
+		}
+		if _, ok := guides["CurrentGuide"]; !ok {
+			t.Errorf("expected 'CurrentGuide' in guides map")
+		}
+	})
 }

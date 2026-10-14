@@ -25,6 +25,9 @@ func ParseGraph(dirPath string) (map[string]Guide, error) {
 		}
 
 		if info.IsDir() {
+			if path == cleanDir {
+				return nil
+			}
 			base := info.Name()
 			// Skip hidden directories (e.g. .git) and build output (public)
 			if strings.HasPrefix(base, ".") || base == "public" {
