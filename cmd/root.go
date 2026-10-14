@@ -31,4 +31,6 @@ func Root() *cobra.Command {
 }
 
 func init() {
+	rootCmd.SetOut(os.Stdout)
+	rootCmd.SetErr(os.Stderr)
 }
