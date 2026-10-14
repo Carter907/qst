@@ -3,10 +3,10 @@ prerequisites: []
 sub_guides:
     - guide: Address Operator
       adherence: introductory
-      segment: 4-4
+      segment: 4
     - guide: Indirection Operator
       adherence: introductory
-      segment: 6-6
+      segment: 6
 scope: description
 tags: [c, operators, pointers]
 ---
