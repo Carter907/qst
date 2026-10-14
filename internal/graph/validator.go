@@ -83,7 +83,7 @@ func CheckAcyclic(guides map[string]Guide) error {
 	return nil
 }
 
-// parseSegments parses a segment string like "10-20, 25-30" into a slice of [2]int
+// parseSegments parses a segment string like "10-20, 25-30" or "4, 6" into a slice of [2]int
 func parseSegments(segmentStr string) ([][2]int, error) {
 	if strings.TrimSpace(segmentStr) == "" {
 		return nil, nil
@@ -92,7 +92,21 @@ func parseSegments(segmentStr string) ([][2]int, error) {
 	parts := strings.SplitSeq(segmentStr, ",")
 	for p := range parts {
 		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
 		bounds := strings.Split(p, "-")
+		if len(bounds) == 1 {
+			line, err := strconv.Atoi(strings.TrimSpace(bounds[0]))
+			if err != nil {
+				return nil, fmt.Errorf("invalid line number: %w", err)
+			}
+			if line < 1 {
+				return nil, fmt.Errorf("line number must be positive: %d", line)
+			}
+			ranges = append(ranges, [2]int{line, line})
+			continue
+		}
 		if len(bounds) != 2 {
 			return nil, fmt.Errorf("invalid range format: %s", p)
 		}
@@ -103,6 +117,9 @@ func parseSegments(segmentStr string) ([][2]int, error) {
 		end, err := strconv.Atoi(strings.TrimSpace(bounds[1]))
 		if err != nil {
 			return nil, fmt.Errorf("invalid end line: %w", err)
+		}
+		if start < 1 {
+			return nil, fmt.Errorf("start line must be positive: %d", start)
 		}
 		if start > end {
 			return nil, fmt.Errorf("start line %d is greater than end line %d", start, end)
@@ -265,8 +282,16 @@ func validateCoverage(guide Guide, allRanges [][2]int, config Manifest) error {
 				return fmt.Errorf("guide '%s' is missing coverage for lines %d to %d", guide.ID, allRanges[i-1][1]+1, allRanges[i][0]-1)
 			}
 		}
-		if allRanges[len(allRanges)-1][1] < guide.LineCount {
-			return fmt.Errorf("guide '%s' is missing coverage for lines %d to %d", guide.ID, allRanges[len(allRanges)-1][1]+1, guide.LineCount)
+		effectiveLineCount := guide.LineCount
+		// If the file ends with a trailing newline (POSIX style EOF), the final body line is empty.
+		// Allow coverage to terminate at either LineCount or LineCount-1 if the trailing line is empty.
+		if effectiveLineCount > 0 && strings.HasSuffix(guide.Body, "\n") {
+			if allRanges[len(allRanges)-1][1] == effectiveLineCount-1 {
+				effectiveLineCount--
+			}
+		}
+		if allRanges[len(allRanges)-1][1] < effectiveLineCount {
+			return fmt.Errorf("guide '%s' is missing coverage for lines %d to %d", guide.ID, allRanges[len(allRanges)-1][1]+1, effectiveLineCount)
 		}
 	}
 	return nil
@@ -492,6 +517,15 @@ func AnalyzeGuideCoverage(guide Guide, config Manifest) (GuideCoverageReport, er
 			}
 		}
 		report.Lines[i] = cov
+	}
+
+	// If the file ends with a trailing newline, the final body line is empty.
+	// If that trailing line is unmapped, exclude it from TotalBodyLines and UnmappedLines
+	// so POSIX newlines at EOF do not register as unmapped errors.
+	if report.TotalBodyLines > 0 && bodyLines[report.TotalBodyLines-1] == "" && len(lineHits[report.TotalBodyLines]) == 0 {
+		report.TotalBodyLines--
+		report.UnmappedLines--
+		report.Lines = report.Lines[:report.TotalBodyLines]
 	}
 
 	return report, nil

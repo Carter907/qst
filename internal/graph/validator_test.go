@@ -437,6 +437,45 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 			},
 			wantErr: true, // overlaps at 5
 		},
+		{
+			name: "strict coverage with trailing blank line at EOF covered to content end",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true,
+					LineCount:  10,
+					Body:       "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\n",
+					Metadata: GuideMetadata{
+						Scope: "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1-9"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "single-line segment shorthand",
+			guides: map[string]Guide{
+				"guide1": {
+					ID:         "guide1",
+					HasContent: true,
+					LineCount:  2,
+					Metadata: GuideMetadata{
+						Scope: "lesson",
+						SubGuides: []SubGuideRelation{
+							{Guide: "guide2", Adherence: "detailed", Segment: "1"},
+							{Guide: "guide3", Adherence: "detailed", Segment: "2"},
+						},
+					},
+				},
+				"guide2": {ID: "guide2", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+				"guide3": {ID: "guide3", HasContent: true, Metadata: GuideMetadata{Scope: "explanation"}},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -446,5 +485,63 @@ func TestValidateGraphStrictCoverage(t *testing.T) {
 				t.Errorf("ValidateGraph() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestParseSegments(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    [][2]int
+		wantErr bool
+	}{
+		{
+			input:   "4",
+			want:    [][2]int{{4, 4}},
+			wantErr: false,
+		},
+		{
+			input:   "4, 6",
+			want:    [][2]int{{4, 4}, {6, 6}},
+			wantErr: false,
+		},
+		{
+			input:   "1-5, 6, 8-10",
+			want:    [][2]int{{1, 5}, {6, 6}, {8, 10}},
+			wantErr: false,
+		},
+		{
+			input:   "0",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			input:   "10-5",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			input:   "invalid",
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseSegments(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ParseSegments(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			continue
+		}
+		if !tt.wantErr {
+			if len(got) != len(tt.want) {
+				t.Errorf("ParseSegments(%q) len = %d, want %d", tt.input, len(got), len(tt.want))
+				continue
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("ParseSegments(%q)[%d] = %v, want %v", tt.input, i, got[i], tt.want[i])
+				}
+			}
+		}
 	}
 }
