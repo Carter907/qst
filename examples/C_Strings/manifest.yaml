@@ -1,0 +1,16 @@
+title: Your New Knowledge
+description: What can you say about this knowledge?
+scopes:
+  - definition
+  - description
+  - explanation
+  - lesson
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: true
+strict_coverage: true
+tours:
