@@ -450,6 +450,7 @@ type GuideCoverageReport struct {
 	GuideID          string
 	Scope            string
 	StrictCoverage   bool
+	HasSubGuides     bool
 	TotalBodyLines   int
 	CoveredLines     int
 	UnmappedLines    int
@@ -463,6 +464,7 @@ func AnalyzeGuideCoverage(guide Guide, config Manifest) (GuideCoverageReport, er
 		GuideID:        guide.ID,
 		Scope:          guide.Metadata.Scope,
 		StrictCoverage: config.StrictCoverage,
+		HasSubGuides:   len(guide.Metadata.SubGuides) > 0,
 	}
 
 	bodyLines := []string{}
