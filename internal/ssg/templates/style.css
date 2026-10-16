@@ -1,10 +1,8 @@
 /* Base & Academic Typography */
 body {
-  font-family:
-    "Charter", "Bitstream Charter", "Sitka Text", "Cambria", Georgia,
-    "Times New Roman", serif;
-  font-size: 17px;
-  line-height: 1.62;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+  line-height: 1.2;
   color: #1a1a1a;
   background-color: #ffffff;
   margin: 0;
@@ -16,7 +14,7 @@ body {
 /* Sidebar Navigation */
 .sidebar {
   width: 260px;
-  background: #fbfbfb;
+  background: #d8d8d8;
   padding: 28px 20px;
   height: 100vh;
   box-sizing: border-box;
@@ -68,7 +66,7 @@ body {
   color: #555555;
   margin: 0 0 10px 0;
   font-weight: 700;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid #717171;
   padding-bottom: 4px;
 }
 
@@ -81,19 +79,19 @@ body {
 }
 
 .sidebar-section-tours .sidebar-heading-accent {
-  background-color: #2563eb;
+  background-color: #6d9499;
 }
 
 .sidebar-section-tours .sidebar-heading-text {
-  color: #1e3a8a;
+  color: #1e5d8a;
 }
 
 .sidebar-section-scopes .sidebar-heading-accent {
-  background-color: #d97706;
+  background-color: #9b805e;
 }
 
 .sidebar-section-scopes .sidebar-heading-text {
-  color: #78350f;
+  color: #6b594e;
 }
 
 .sidebar-tour-group {
@@ -551,7 +549,9 @@ tr:nth-child(even) td {
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
 .mermaid-toolbar button:hover {
