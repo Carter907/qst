@@ -3,11 +3,56 @@ package ssg
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+// extractTar unpacks tar entries into destDir with Zip Slip protection.
+func extractTar(tr *tar.Reader, destDir string) error {
+	cleanDest := filepath.Clean(destDir)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		target := filepath.Join(cleanDest, header.Name)
+		cleanTarget := filepath.Clean(target)
+
+		// Zip Slip / Path Traversal protection
+		if cleanTarget != cleanDest && !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) {
+			return fmt.Errorf("illegal file path: %s", header.Name)
+		}
+
+		if header.FileInfo().IsDir() {
+			if mkdirErr := os.MkdirAll(cleanTarget, 0o755); mkdirErr != nil {
+				return mkdirErr
+			}
+			continue
+		}
+
+		if mkdirErr := os.MkdirAll(filepath.Dir(cleanTarget), 0o755); mkdirErr != nil {
+			return mkdirErr
+		}
+		f, err := os.OpenFile(cleanTarget, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(f, tr); err != nil {
+			_ = f.Close()
+			return err
+		}
+		_ = f.Close()
+	}
+	return nil
+}
 
 // downloadKaTeX downloads and extracts the KaTeX tarball to outDir/assets/vendor.
 // It creates the katex/ folder inside vendor/.
@@ -31,37 +76,7 @@ func downloadKaTeX(destDir string) error {
 	defer func() { _ = gr.Close() }()
 
 	tr := tar.NewReader(gr)
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		target := filepath.Join(destDir, header.Name)
-		if header.FileInfo().IsDir() {
-			if mkdirErr := os.MkdirAll(target, 0o755); mkdirErr != nil {
-				return mkdirErr
-			}
-			continue
-		}
-
-		if mkdirErr := os.MkdirAll(filepath.Dir(target), 0o755); mkdirErr != nil {
-			return mkdirErr
-		}
-		f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(f, tr); err != nil {
-			_ = f.Close()
-			return err
-		}
-		_ = f.Close()
-	}
-	return nil
+	return extractTar(tr, destDir)
 }
 
 // downloadMermaid downloads the standalone mermaid bundle to outDir/assets/vendor/mermaid/mermaid.min.js.
