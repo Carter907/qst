@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	huh "charm.land/huh/v2"
@@ -18,30 +19,60 @@ var (
 	addPrerequisites []string
 	addScope         string
 	addTags          []string
+	addSubguides     []string
+	addAdherence     string
+	addSegment       string
+	addBody          string
+	addFile          string
 )
 
 var addCmd = &cobra.Command{
 	Use:   "add [name]",
 	Short: "Add a new guide to the knowledge graph.",
-	Long:  "Add allows you to insert a guide into the knowledge graph by specifying its prerequisites, and scope. A new markdown file will be inserted into the target directory.",
+	Long:  "Add allows you to insert a guide into the knowledge graph by specifying its prerequisites, subguides, and scope. A new markdown file will be inserted into the target directory.",
 	Example: `# Add a new definition
 qst add Exponent --scope definition
 
-# Add to a specific directory
-qst add Exponent --dir my_graph/`,
+# Add a description with subguides and adherence
+qst add "String Operations" --scope description --subguide "String Length, String Copy" --adherence introductory
+
+# Add to a specific directory with initial body content
+qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory Layout\n\nExplanation text."`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 		filename := filepath.Join(addDir, name+".md")
 
 		if _, err := os.Stat(filename); !os.IsNotExist(err) {
-			fmt.Printf("Error: %s already exists\n", filename)
-			os.Exit(1)
+			cmd.PrintErrf("Error: %s already exists\n", filename)
+			exitFunc(1)
+			return
 		}
 		config, err := graph.ParseConfig(addDir)
 		if err != nil {
-			fmt.Printf("Failed to load manifest.yaml config: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to load manifest.yaml config: %v\n", err)
+			exitFunc(1)
+			return
+		}
+
+		defer func() {
+			addPrerequisites = nil
+			addSubguides = nil
+			addTags = nil
+		}()
+
+		normalizeSlice := func(items []string) []string {
+			var res []string
+			for _, item := range items {
+				item = strings.TrimPrefix(item, "[")
+				item = strings.TrimSuffix(item, "]")
+				for _, part := range strings.Split(item, ",") {
+					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
+						res = append(res, trimmed)
+					}
+				}
+			}
+			return res
 		}
 
 		if interactive {
@@ -81,51 +112,119 @@ qst add Exponent --dir my_graph/`,
 
 				err = form.Run()
 				if err != nil {
-					fmt.Printf("Failed to run form: %v\n", err)
-					os.Exit(1)
+					cmd.PrintErrf("Failed to run form: %v\n", err)
+					exitFunc(1)
+					return
 				}
-			}
-
-			parseCSV := func(s string) []string {
-				s = strings.TrimSpace(s)
-				if s == "" {
-					return []string{}
-				}
-				parts := strings.Split(s, ",")
-				var res []string
-				for _, p := range parts {
-					if trimmed := strings.TrimSpace(p); trimmed != "" {
-						res = append(res, trimmed)
-					}
-				}
-				return res
 			}
 
 			if !cmd.Flags().Changed("prerequisites") {
-				addPrerequisites = parseCSV(prereqString)
+				addPrerequisites = normalizeSlice([]string{prereqString})
 			}
 			if !cmd.Flags().Changed("tags") {
-				addTags = parseCSV(tagsString)
+				addTags = normalizeSlice([]string{tagsString})
 			}
 		} else {
-			if cmd.Flags().Changed("scope") {
-				validScope := false
-				for _, s := range config.Scopes {
-					if addScope == s {
-						validScope = true
-						break
-					}
-				}
-				if !validScope {
-					fmt.Printf("Error: invalid scope '%s'. Valid scopes are: %v\n", addScope, config.Scopes)
-					os.Exit(1)
-				}
+			if !cmd.Flags().Changed("scope") || addScope == "" {
+				cmd.PrintErrln("Error: --scope is required in non-interactive mode")
+				exitFunc(1)
+				return
+			}
+		}
+
+		validScope := slices.Contains(config.Scopes, addScope)
+		if !validScope {
+			cmd.PrintErrf("Error: invalid scope '%s'. Valid scopes are: %v\n", addScope, config.Scopes)
+			exitFunc(1)
+			return
+		}
+
+		addPrerequisites = normalizeSlice(addPrerequisites)
+		addSubguides = normalizeSlice(addSubguides)
+		addTags = normalizeSlice(addTags)
+
+		// Parse graph to validate prerequisites and subguides if any are specified
+		var guides map[string]graph.Guide
+		if len(addPrerequisites) > 0 || len(addSubguides) > 0 {
+			var parseErr error
+			guides, parseErr = graph.ParseGraph(addDir)
+			if parseErr != nil {
+				cmd.PrintErrf("Error parsing graph: %v\n", parseErr)
+				exitFunc(1)
+				return
+			}
+		}
+
+		// Validate prerequisites
+		for _, prereq := range addPrerequisites {
+			p, exists := guides[prereq]
+			if !exists {
+				cmd.PrintErrf("Error: prerequisite '%s' does not exist in graph\n", prereq)
+				exitFunc(1)
+				return
+			}
+			if p.Metadata.Scope != addScope {
+				cmd.PrintErrf("Error: prerequisite '%s' has scope '%s', which does not match guide scope '%s'\n", prereq, p.Metadata.Scope, addScope)
+				exitFunc(1)
+				return
+			}
+		}
+
+		// Prepare initial body content
+		body := fmt.Sprintf("## %s\n\nThis is a guide for %s.\n", name, name)
+		if cmd.Flags().Changed("file") && addFile != "" {
+			fileBytes, readErr := os.ReadFile(addFile)
+			if readErr != nil {
+				cmd.PrintErrf("Failed to read body file %s: %v\n", addFile, readErr)
+				exitFunc(1)
+				return
+			}
+			body = string(fileBytes)
+			if !strings.HasSuffix(body, "\n") {
+				body += "\n"
+			}
+		} else if cmd.Flags().Changed("body") {
+			body = addBody
+			if !strings.HasSuffix(body, "\n") {
+				body += "\n"
+			}
+		}
+
+		bodyLineCount := len(strings.Split(strings.TrimSuffix(body, "\n"), "\n"))
+
+		// Validate and prepare subguides
+		var subRelations []graph.SubGuideRelation
+		if len(addSubguides) > 0 {
+			if addAdherence == "" && len(config.Adherences) > 0 {
+				addAdherence = config.Adherences[0]
 			}
 
+			// Insert virtual parent guide into guides map for validation
+			guides[name] = graph.Guide{
+				ID: name,
+				Metadata: graph.GuideMetadata{
+					Scope: addScope,
+				},
+				LineCount: bodyLineCount,
+			}
+
+			for _, sub := range addSubguides {
+				if valErr := graph.ValidateSubGuideLink(guides, config, name, sub, addAdherence, addSegment); valErr != nil {
+					cmd.PrintErrf("Error: %v\n", valErr)
+					exitFunc(1)
+					return
+				}
+				subRelations = append(subRelations, graph.SubGuideRelation{
+					Guide:     sub,
+					Adherence: addAdherence,
+					Segment:   addSegment,
+				})
+			}
 		}
 
 		meta := graph.GuideMetadata{
 			Prerequisites: addPrerequisites,
+			SubGuides:     subRelations,
 			Scope:         addScope,
 			Tags:          addTags,
 		}
@@ -142,19 +241,21 @@ qst add Exponent --dir my_graph/`,
 
 		metaBytes, err := yaml.Marshal(&meta)
 		if err != nil {
-			fmt.Printf("Failed to marshal frontmatter: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to marshal frontmatter: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
-		content := fmt.Sprintf("---\n%s---\n\n## %s\n\nThis is a guide for %s.\n", string(metaBytes), name, name)
+		content := fmt.Sprintf("---\n%s---\n\n%s", string(metaBytes), body)
 
 		err = os.WriteFile(filename, []byte(content), 0o644)
 		if err != nil {
-			fmt.Printf("Failed to write %s: %v\n", filename, err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to write %s: %v\n", filename, err)
+			exitFunc(1)
+			return
 		}
 
-		fmt.Printf("Successfully added new guide: %s\n", filename)
+		cmd.Printf("Successfully added new guide: %s\n", filename)
 	},
 }
 
@@ -164,6 +265,12 @@ func init() {
 	addCmd.Flags().StringSliceVar(&addPrerequisites, "prerequisites", nil, "List of prerequisites")
 	addCmd.Flags().StringVar(&addScope, "scope", "", "Scope of the guide (e.g. definition, description)")
 	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "List of tags")
+	addCmd.Flags().StringSliceVarP(&addSubguides, "subguide", "s", nil, "List of subguides to link")
+	addCmd.Flags().StringSliceVar(&addSubguides, "sub", nil, "Alias for --subguide")
+	addCmd.Flags().StringVar(&addAdherence, "adherence", "", "Adherence of the subguide relation")
+	addCmd.Flags().StringVar(&addSegment, "segment", "", "Segment line range in body (e.g. 4-4)")
+	addCmd.Flags().StringVar(&addBody, "body", "", "Initial markdown body for the guide")
+	addCmd.Flags().StringVar(&addFile, "file", "", "Path to file containing initial markdown body")
 
 	rootCmd.AddCommand(addCmd)
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -40,14 +39,16 @@ func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage b
 
 	guide, err := graph.ParseGuide(filename)
 	if err != nil {
-		cmd.Printf("Error: guide '%s' not found or failed to parse: %v\n", guideName, err)
-		os.Exit(1)
+		cmd.PrintErrf("Error: guide '%s' not found or failed to parse: %v\n", guideName, err)
+		exitFunc(1)
+		return
 	}
 
 	config, err := graph.ParseConfig(dir)
 	if err != nil {
-		cmd.Printf("Failed to load manifest.yaml: %v\n", err)
-		os.Exit(1)
+		cmd.PrintErrf("Failed to load manifest.yaml: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	scopeLevel := ""
@@ -95,7 +96,9 @@ func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage b
 		pct := (float64(report.CoveredLines) / float64(report.TotalBodyLines)) * 100.0
 		strictNote := ""
 		if report.StrictCoverage {
-			if report.UnmappedLines > 0 || report.OverlappingLines > 0 {
+			if !report.HasSubGuides {
+				strictNote = " [strict: N/A (leaf)]"
+			} else if report.UnmappedLines > 0 || report.OverlappingLines > 0 {
 				strictNote = " [strict: FAILED]"
 			} else {
 				strictNote = " [strict: PASSED]"
@@ -113,8 +116,12 @@ func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage b
 
 	// Content stats
 	wordCount := len(strings.Fields(guide.Body))
+	bodyLines := guide.LineCount
+	if report.TotalBodyLines > 0 {
+		bodyLines = report.TotalBodyLines
+	}
 	cmd.Println("\nContent Stats:")
-	cmd.Printf("  Body Lines: %d\n", guide.LineCount)
+	cmd.Printf("  Body Lines: %d\n", bodyLines)
 	cmd.Printf("  Word Count: %d\n", wordCount)
 
 	// Expanded coverage section
@@ -156,7 +163,9 @@ func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage b
 		cmd.Printf("  Overlapping Lines: %d\n", report.OverlappingLines)
 
 		if report.StrictCoverage {
-			if report.UnmappedLines > 0 || report.OverlappingLines > 0 {
+			if !report.HasSubGuides {
+				cmd.Println("  Status: N/A (leaf guide - no subguides defined)")
+			} else if report.UnmappedLines > 0 || report.OverlappingLines > 0 {
 				cmd.Println("  Status: FAILED (strict_coverage is enabled but unmapped or overlapping lines exist)")
 			} else {
 				cmd.Println("  Status: PASSED (100% strict coverage satisfied)")

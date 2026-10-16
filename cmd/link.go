@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
@@ -14,25 +13,33 @@ import (
 var (
 	linkInteractive bool
 	linkDir         string
-	linkGuide       string
-	linkPrereq      string
+	linkSubguides   []string
+	linkPrereqs     []string
 	linkAdherence   string
 	linkSegment     string
+	linkPreview     bool
 )
 
 var linkCmd = &cobra.Command{
 	Use:   "link [guide]",
 	Short: "Link a subguide or prerequisite to an existing guide.",
 	Long: `Link allows you to connect guides together in the knowledge graph.
-- Use --guide to link a hierarchical subguide (with --adherence and optional --segment).
-  If the subguide is already linked, its adherence and segment will be updated in place.
-- Use --prereq to link a horizontal prerequisite of the exact same scope.
+- Use --subguide (or --sub, -s) to link one or more hierarchical subguides (with --adherence and optional --segment).
+  If a subguide is already linked, its adherence and segment will be updated in place.
+- Use --prereq to link one or more horizontal prerequisites of the exact same scope.
+- Use --preview (-p) to preview numbered body lines for accurate segment range selection.
 - Use --interactive (-i) for interactive guided selection with constraint checking.`,
 	Example: `# Link a subguide with adherence and line segment
-qst link "The Compilation Process" --guide "Compiler" --adherence introductory --segment 6-6
+qst link "The Compilation Process" --subguide "Compiler" --adherence introductory --segment 6-6
+
+# Link multiple subguides at once
+qst link "Chapter 13 Strings" --subguide "String Fundamentals, String IO" --adherence introductory
 
 # Link a prerequisite of identical scope
 qst link "Scanf Function" --prereq "Printf Function"
+
+# Preview body lines before linking
+qst link "Variables and Assignment" --preview
 
 # Interactive link selection
 qst link "Variables and Assignment" -i`,
@@ -41,36 +48,68 @@ qst link "Variables and Assignment" -i`,
 		guideName := args[0]
 		filename := filepath.Join(linkDir, guideName+".md")
 
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			cmd.Printf("Error: guide '%s' does not exist at %s\n", guideName, filename)
-			os.Exit(1)
-		}
-
 		guides, err := graph.ParseGraph(linkDir)
 		if err != nil {
-			cmd.Printf("Error parsing graph: %v\n", err)
-			os.Exit(1)
-		}
-
-		config, err := graph.ParseConfig(linkDir)
-		if err != nil {
-			cmd.Printf("Failed to load manifest.yaml config: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error parsing graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		currentGuide, exists := guides[guideName]
 		if !exists {
-			cmd.Printf("Error: guide '%s' not found in graph\n", guideName)
-			os.Exit(1)
+			cmd.PrintErrf("Error: guide '%s' not found in graph\n", guideName)
+			exitFunc(1)
+			return
+		}
+
+		config, err := graph.ParseConfig(linkDir)
+		if err != nil {
+			cmd.PrintErrf("Failed to load manifest.yaml config: %v\n", err)
+			exitFunc(1)
+			return
+		}
+
+		defer func() {
+			linkPrereqs = nil
+			linkSubguides = nil
+		}()
+
+		normalizeSlice := func(items []string) []string {
+			var res []string
+			for _, item := range items {
+				item = strings.TrimPrefix(item, "[")
+				item = strings.TrimSuffix(item, "]")
+				for _, part := range strings.Split(item, ",") {
+					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
+						res = append(res, trimmed)
+					}
+				}
+			}
+			return res
 		}
 
 		isPrereqSet := cmd.Flags().Changed("prereq")
-		isGuideSet := cmd.Flags().Changed("guide")
+		isSubguideSet := cmd.Flags().Changed("subguide") || cmd.Flags().Changed("sub")
+
+		// Show preview if requested
+		if linkPreview {
+			cmd.Println("\n" + strings.Repeat("=", 80))
+			cmd.Printf("Body Lines Preview: %s\n", guideName)
+			cmd.Println(strings.Repeat("-", 80))
+			bodyLines := strings.Split(currentGuide.Body, "\n")
+			for i, line := range bodyLines {
+				cmd.Printf("[L%3d] %s\n", i+1, line)
+			}
+			cmd.Println(strings.Repeat("-", 80))
+			if !isPrereqSet && !isSubguideSet && !linkInteractive {
+				return
+			}
+		}
 
 		// Interactive mode
-		if linkInteractive || (!isPrereqSet && !isGuideSet) {
+		if linkInteractive || (!isPrereqSet && !isSubguideSet) {
 			linkType := "subguide"
-			if !isPrereqSet && !isGuideSet {
+			if !isPrereqSet && !isSubguideSet {
 				err := huh.NewSelect[string]().
 					Title("Choose relationship type to link").
 					Options(
@@ -80,8 +119,9 @@ qst link "Variables and Assignment" -i`,
 					Value(&linkType).
 					Run()
 				if err != nil {
-					cmd.Printf("Link aborted: %v\n", err)
-					os.Exit(1)
+					cmd.PrintErrf("Link aborted: %v\n", err)
+					exitFunc(1)
+					return
 				}
 			} else if isPrereqSet {
 				linkType = "prereq"
@@ -114,24 +154,28 @@ qst link "Variables and Assignment" -i`,
 					}
 
 					if len(candidateOptions) == 0 {
-						cmd.Printf("No available guides with matching scope '%s' to link as prerequisite.\n", currentScope)
-						os.Exit(1)
+						cmd.PrintErrf("No available guides with matching scope '%s' to link as prerequisite.\n", currentScope)
+						exitFunc(1)
+						return
 					}
 
+					selectedPrereq := ""
 					err = huh.NewSelect[string]().
 						Title("Select prerequisite guide").
 						Options(candidateOptions...).
-						Value(&linkPrereq).
+						Value(&selectedPrereq).
 						Run()
 					if err != nil {
-						cmd.Printf("Link aborted: %v\n", err)
-						os.Exit(1)
+						cmd.PrintErrf("Link aborted: %v\n", err)
+						exitFunc(1)
+						return
 					}
+					linkPrereqs = []string{selectedPrereq}
 					isPrereqSet = true
 				}
 			} else {
 				// Subguide
-				if !isGuideSet {
+				if !isSubguideSet {
 					parentScopeVal := graph.GetScopeValue(currentGuide.Metadata.Scope, config)
 					var candidateOptions []huh.Option[string]
 					var sortedCandidates []string
@@ -151,24 +195,28 @@ qst link "Variables and Assignment" -i`,
 					}
 					sort.Strings(sortedCandidates)
 					for _, c := range sortedCandidates {
-						candidateOptions = append(candidateOptions, huh.NewOption(fmt.Sprintf("%s (%s)", c, guides[c].Metadata.Scope), c))
+						candidateOptions = append(candidateOptions, huh.NewOption(cmdFormatOption(c, guides[c].Metadata.Scope), c))
 					}
 
 					if len(candidateOptions) == 0 {
-						cmd.Printf("No available guides with valid lower scope to link as subguide under '%s'.\n", guideName)
-						os.Exit(1)
+						cmd.PrintErrf("No available guides with valid lower scope to link as subguide under '%s'.\n", guideName)
+						exitFunc(1)
+						return
 					}
 
+					selectedSubguide := ""
 					err = huh.NewSelect[string]().
 						Title("Select subguide to link").
 						Options(candidateOptions...).
-						Value(&linkGuide).
+						Value(&selectedSubguide).
 						Run()
 					if err != nil {
-						cmd.Printf("Link aborted: %v\n", err)
-						os.Exit(1)
+						cmd.PrintErrf("Link aborted: %v\n", err)
+						exitFunc(1)
+						return
 					}
-					isGuideSet = true
+					linkSubguides = []string{selectedSubguide}
+					isSubguideSet = true
 				}
 
 				if !cmd.Flags().Changed("adherence") {
@@ -182,79 +230,125 @@ qst link "Variables and Assignment" -i`,
 						Value(&linkAdherence).
 						Run()
 					if err != nil {
-						cmd.Printf("Link aborted: %v\n", err)
-						os.Exit(1)
+						cmd.PrintErrf("Link aborted: %v\n", err)
+						exitFunc(1)
+						return
 					}
 				}
 
 				if !cmd.Flags().Changed("segment") {
+					// Display body preview to assist with segment input
+					cmd.Println("\nBody Lines Preview:")
+					bodyLines := strings.Split(currentGuide.Body, "\n")
+					for i, line := range bodyLines {
+						cmd.Printf("[L%3d] %s\n", i+1, line)
+					}
+					cmd.Println()
+
 					err = huh.NewInput().
 						Title("Enter segment range in body (optional)").
 						Placeholder("e.g. 4-4 or 10-20").
 						Value(&linkSegment).
 						Run()
 					if err != nil {
-						cmd.Printf("Link aborted: %v\n", err)
-						os.Exit(1)
+						cmd.PrintErrf("Link aborted: %v\n", err)
+						exitFunc(1)
+						return
 					}
 				}
 			}
 		}
 
-		// Handle Prerequisite
-		if isPrereqSet && linkPrereq != "" {
-			if err := graph.ValidatePrerequisiteLink(guides, config, guideName, linkPrereq); err != nil {
-				cmd.Printf("Error: %v\n", err)
-				os.Exit(1)
+		// Handle Prerequisites (batch support)
+		if isPrereqSet {
+			prereqs := normalizeSlice(linkPrereqs)
+			if len(prereqs) == 0 {
+				cmd.PrintErrln("Error: no prerequisite specified")
+				exitFunc(1)
+				return
 			}
+			for _, prereq := range prereqs {
+				if err := graph.ValidatePrerequisiteLink(guides, config, guideName, prereq); err != nil {
+					cmd.PrintErrf("Error: %v\n", err)
+					exitFunc(1)
+					return
+				}
 
-			if err := graph.AddPrerequisite(filename, linkPrereq); err != nil {
-				cmd.Printf("Failed to update guide: %v\n", err)
-				os.Exit(1)
+				if err := graph.AddPrerequisite(filename, prereq); err != nil {
+					cmd.PrintErrf("Failed to update guide: %v\n", err)
+					exitFunc(1)
+					return
+				}
+
+				// Update local guide state for subsequent validations
+				g := guides[guideName]
+				g.Metadata.Prerequisites = append(g.Metadata.Prerequisites, prereq)
+				guides[guideName] = g
+
+				cmd.Printf("Successfully linked prerequisite '%s' to '%s'\n", prereq, guideName)
 			}
-
-			cmd.Printf("Successfully linked prerequisite '%s' to '%s'\n", linkPrereq, guideName)
 			return
 		}
 
-		// Handle Subguide
-		if isGuideSet && linkGuide != "" {
+		// Handle Subguides (batch support)
+		if isSubguideSet {
+			subguides := normalizeSlice(linkSubguides)
+			if len(subguides) == 0 {
+				cmd.PrintErrln("Error: no subguide specified")
+				exitFunc(1)
+				return
+			}
 			if linkAdherence == "" && len(config.Adherences) > 0 {
 				linkAdherence = config.Adherences[0]
 			}
 
-			if err := graph.ValidateSubGuideLink(guides, config, guideName, linkGuide, linkAdherence, linkSegment); err != nil {
-				cmd.Printf("Error: %v\n", err)
-				os.Exit(1)
-			}
+			for _, sub := range subguides {
+				if err := graph.ValidateSubGuideLink(guides, config, guideName, sub, linkAdherence, linkSegment); err != nil {
+					cmd.PrintErrf("Error: %v\n", err)
+					exitFunc(1)
+					return
+				}
 
-			newSubguide := graph.SubGuideRelation{
-				Guide:     linkGuide,
-				Adherence: linkAdherence,
-				Segment:   linkSegment,
-			}
+				newSubguide := graph.SubGuideRelation{
+					Guide:     sub,
+					Adherence: linkAdherence,
+					Segment:   linkSegment,
+				}
 
-			if err := graph.UpsertSubGuide(filename, newSubguide); err != nil {
-				cmd.Printf("Failed to update guide: %v\n", err)
-				os.Exit(1)
-			}
+				if err := graph.UpsertSubGuide(filename, newSubguide); err != nil {
+					cmd.PrintErrf("Failed to update guide: %v\n", err)
+					exitFunc(1)
+					return
+				}
 
-			cmd.Printf("Successfully linked subguide '%s' to '%s'\n", linkGuide, guideName)
+				// Update local guide state for subsequent validations
+				g := guides[guideName]
+				g.Metadata.SubGuides = append(g.Metadata.SubGuides, newSubguide)
+				guides[guideName] = g
+
+				cmd.Printf("Successfully linked subguide '%s' to '%s'\n", sub, guideName)
+			}
 			return
 		}
 
-		cmd.Println("Error: must specify either --guide or --prereq, or use -i for interactive mode.")
-		os.Exit(1)
+		cmd.PrintErrln("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
+		exitFunc(1)
 	},
+}
+
+func cmdFormatOption(id, scope string) string {
+	return id + " (" + scope + ")"
 }
 
 func init() {
 	linkCmd.Flags().BoolVarP(&linkInteractive, "interactive", "i", false, "Interactive mode with guided selection")
 	linkCmd.Flags().StringVarP(&linkDir, "dir", "d", ".", "Knowledge graph directory")
-	linkCmd.Flags().StringVar(&linkGuide, "guide", "", "Name of the subguide to link")
-	linkCmd.Flags().StringVar(&linkPrereq, "prereq", "", "Name of the prerequisite guide to link")
+	linkCmd.Flags().StringSliceVarP(&linkSubguides, "subguide", "s", nil, "Name(s) of the subguide(s) to link")
+	linkCmd.Flags().StringSliceVar(&linkSubguides, "sub", nil, "Alias for --subguide")
+	linkCmd.Flags().StringSliceVar(&linkPrereqs, "prereq", nil, "Name(s) of the prerequisite guide(s) to link")
 	linkCmd.Flags().StringVar(&linkAdherence, "adherence", "", "Adherence of the subguide relation")
 	linkCmd.Flags().StringVar(&linkSegment, "segment", "", "Segment line range in body (e.g. 4-4)")
+	linkCmd.Flags().BoolVarP(&linkPreview, "preview", "p", false, "Preview numbered body lines of the guide")
 
 	rootCmd.AddCommand(linkCmd)
 }

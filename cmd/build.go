@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/Carter907/qst/internal/ssg"
 	"github.com/spf13/cobra"
 )
@@ -20,13 +17,14 @@ var buildCmd = &cobra.Command{
 			dir = args[0]
 		}
 
-		fmt.Printf("Building static site from '%s' to '%s'...\n", dir, buildOut)
+		cmd.Printf("Building static site from '%s' to '%s'...\n", dir, buildOut)
 		err := ssg.BuildSite(dir, buildOut)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error building site: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error building site: %v\n", err)
+			exitFunc(1)
+			return
 		}
-		fmt.Println("Build complete!")
+		cmd.Println("Build complete!")
 	},
 }
 

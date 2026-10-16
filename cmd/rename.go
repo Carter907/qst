@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -21,17 +20,20 @@ var renameCmd = &cobra.Command{
 
 		guides, err := graph.ParseGraph(renameDir)
 		if err != nil {
-			fmt.Printf("Error parsing graph: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error parsing graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		if _, exists := guides[oldName]; !exists {
-			fmt.Printf("Error: guide '%s' does not exist in the graph\n", oldName)
-			os.Exit(1)
+			cmd.PrintErrf("Error: guide '%s' does not exist in the graph\n", oldName)
+			exitFunc(1)
+			return
 		}
 		if _, exists := guides[newName]; exists {
-			fmt.Printf("Error: guide '%s' already exists in the graph\n", newName)
-			os.Exit(1)
+			cmd.PrintErrf("Error: guide '%s' already exists in the graph\n", newName)
+			exitFunc(1)
+			return
 		}
 
 		// Iterate and update references
@@ -57,8 +59,9 @@ var renameCmd = &cobra.Command{
 			if needsUpdate {
 				err = graph.UpdateGuideMetadata(guide.Path, meta)
 				if err != nil {
-					fmt.Printf("Failed to update guide '%s': %v\n", guide.ID, err)
-					os.Exit(1)
+					cmd.PrintErrf("Failed to update guide '%s': %v\n", guide.ID, err)
+					exitFunc(1)
+					return
 				}
 				updatedCount++
 			}
@@ -80,8 +83,9 @@ var renameCmd = &cobra.Command{
 			if configUpdated {
 				err = graph.UpdateConfig(renameDir, config)
 				if err != nil {
-					fmt.Printf("Failed to update manifest.yaml: %v\n", err)
-					os.Exit(1)
+					cmd.PrintErrf("Failed to update manifest.yaml: %v\n", err)
+					exitFunc(1)
+					return
 				}
 			}
 		}
@@ -91,11 +95,12 @@ var renameCmd = &cobra.Command{
 		newPath := filepath.Join(filepath.Dir(oldPath), newName+".md")
 		err = os.Rename(oldPath, newPath)
 		if err != nil {
-			fmt.Printf("Failed to rename file: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to rename file: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
-		fmt.Printf("Successfully renamed '%s' to '%s' and updated %d references.\n", oldName, newName, updatedCount)
+		cmd.Printf("Successfully renamed '%s' to '%s' and updated %d references.\n", oldName, newName, updatedCount)
 	},
 }
 

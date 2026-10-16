@@ -29,8 +29,9 @@ qst new --starter`,
 
 		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
-			fmt.Printf("Failed to create knowledge graph: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to create knowledge graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
 		if createStarter {
@@ -49,17 +50,18 @@ This is an example guide. Replace this content with your own knowledge!
 `
 				err = os.WriteFile(starterPath, []byte(starterContent), 0o644)
 				if err != nil {
-					fmt.Printf("Failed to create starter guide: %v\n", err)
-					os.Exit(1)
+					cmd.PrintErrf("Failed to create starter guide: %v\n", err)
+					exitFunc(1)
+					return
 				}
 			} else {
-				fmt.Printf("Sample guide already exists, skipping write...\n")
+				cmd.Println("Sample guide already exists, skipping write...")
 			}
 		}
 
 		metaFilePath := filepath.Join(dir, "manifest.yaml")
 		if _, err := os.Stat(metaFilePath); os.IsNotExist(err) {
-			metaFileContent := `title: Your New Knowledge
+			metaFileContent := fmt.Sprintf(`title: Your New Knowledge
 description: What can you say about this knowledge?
 scopes:
   - definition
@@ -73,25 +75,30 @@ adherences:
   - vague
 relaxed_subguides: false
 require_subguides: true
-strict_coverage: true
-tours:`
+strict_coverage: %t
+tours:`, newStrictCoverage)
 
 			err = os.WriteFile(metaFilePath, []byte(metaFileContent), 0o644)
 			if err != nil {
-				fmt.Printf("Failed to write metafile: %v\n", err)
-				os.Exit(1)
+				cmd.PrintErrf("Failed to write metafile: %v\n", err)
+				exitFunc(1)
+				return
 			}
 
 		} else {
-			fmt.Printf("Metafile already exists, skipping write...\n")
+			cmd.Println("Metafile already exists, skipping write...")
 		}
-		fmt.Printf("Initialized knowledge graph in %s\n", dir)
+		cmd.Printf("Initialized knowledge graph in %s\n", dir)
 	},
 }
 
-var createStarter bool
+var (
+	createStarter     bool
+	newStrictCoverage bool
+)
 
 func init() {
 	rootCmd.AddCommand(newCmd)
 	newCmd.Flags().BoolVarP(&createStarter, "starter", "s", false, "Initialize with a starter markdown guide")
+	newCmd.Flags().BoolVar(&newStrictCoverage, "strict-coverage", false, "Enable strict coverage mode in manifest.yaml")
 }

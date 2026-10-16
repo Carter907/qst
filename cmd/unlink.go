@@ -14,7 +14,7 @@ import (
 var (
 	unlinkInteractive bool
 	unlinkDir         string
-	unlinkGuide       string
+	unlinkSubguide    string
 	unlinkPrereq      string
 )
 
@@ -22,11 +22,11 @@ var unlinkCmd = &cobra.Command{
 	Use:   "unlink [guide]",
 	Short: "Unlink a subguide or prerequisite from an existing guide.",
 	Long: `Unlink allows you to sever relationships between guides in the knowledge graph.
-- Use --guide to remove a subguide relation.
+- Use --subguide (or --sub, -s) to remove a subguide relation.
 - Use --prereq to remove a prerequisite relation.
 - Use --interactive (-i) to choose from existing links to remove.`,
 	Example: `# Unlink a subguide
-qst unlink "The Compilation Process" --guide "Compiler"
+qst unlink "The Compilation Process" --subguide "Compiler"
 
 # Unlink a prerequisite
 qst unlink "Scanf Function" --prereq "Printf Function"
@@ -39,21 +39,23 @@ qst unlink "Variables and Assignment" -i`,
 		filename := filepath.Join(unlinkDir, guideName+".md")
 
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			cmd.Printf("Error: guide '%s' does not exist at %s\n", guideName, filename)
-			os.Exit(1)
+			cmd.PrintErrf("Error: guide '%s' does not exist at %s\n", guideName, filename)
+			exitFunc(1)
+			return
 		}
 
 		currentGuide, err := graph.ParseGuide(filename)
 		if err != nil {
-			cmd.Printf("Failed to parse guide '%s': %v\n", guideName, err)
-			os.Exit(1)
+			cmd.PrintErrf("Failed to parse guide '%s': %v\n", guideName, err)
+			exitFunc(1)
+			return
 		}
 
 		isPrereqSet := cmd.Flags().Changed("prereq")
-		isGuideSet := cmd.Flags().Changed("guide")
+		isSubguideSet := cmd.Flags().Changed("subguide") || cmd.Flags().Changed("sub")
 
 		// Interactive mode
-		if unlinkInteractive || (!isPrereqSet && !isGuideSet) {
+		if unlinkInteractive || (!isPrereqSet && !isSubguideSet) {
 			var linkOptions []huh.Option[string]
 
 			for _, p := range currentGuide.Metadata.Prerequisites {
@@ -80,46 +82,50 @@ qst unlink "Variables and Assignment" -i`,
 				Value(&selected).
 				Run()
 			if err != nil {
-				cmd.Printf("Unlink aborted: %v\n", err)
-				os.Exit(1)
+				cmd.PrintErrf("Unlink aborted: %v\n", err)
+				exitFunc(1)
+				return
 			}
 
 			if strings.HasPrefix(selected, "prereq:") {
 				unlinkPrereq = strings.TrimPrefix(selected, "prereq:")
 				isPrereqSet = true
 			} else if strings.HasPrefix(selected, "subguide:") {
-				unlinkGuide = strings.TrimPrefix(selected, "subguide:")
-				isGuideSet = true
+				unlinkSubguide = strings.TrimPrefix(selected, "subguide:")
+				isSubguideSet = true
 			}
 		}
 
 		if isPrereqSet && unlinkPrereq != "" {
 			if err := graph.RemovePrerequisite(filename, unlinkPrereq); err != nil {
-				cmd.Printf("Error: %v\n", err)
-				os.Exit(1)
+				cmd.PrintErrf("Error: %v\n", err)
+				exitFunc(1)
+				return
 			}
 			cmd.Printf("Successfully unlinked prerequisite '%s' from '%s'\n", unlinkPrereq, guideName)
 			return
 		}
 
-		if isGuideSet && unlinkGuide != "" {
-			if err := graph.RemoveSubGuide(filename, unlinkGuide); err != nil {
-				cmd.Printf("Error: %v\n", err)
-				os.Exit(1)
+		if isSubguideSet && unlinkSubguide != "" {
+			if err := graph.RemoveSubGuide(filename, unlinkSubguide); err != nil {
+				cmd.PrintErrf("Error: %v\n", err)
+				exitFunc(1)
+				return
 			}
-			cmd.Printf("Successfully unlinked subguide '%s' from '%s'\n", unlinkGuide, guideName)
+			cmd.Printf("Successfully unlinked subguide '%s' from '%s'\n", unlinkSubguide, guideName)
 			return
 		}
 
-		cmd.Println("Error: must specify either --guide or --prereq, or use -i for interactive mode.")
-		os.Exit(1)
+		cmd.PrintErrln("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
+		exitFunc(1)
 	},
 }
 
 func init() {
 	unlinkCmd.Flags().BoolVarP(&unlinkInteractive, "interactive", "i", false, "Interactive mode with guided selection")
 	unlinkCmd.Flags().StringVarP(&unlinkDir, "dir", "d", ".", "Knowledge graph directory")
-	unlinkCmd.Flags().StringVar(&unlinkGuide, "guide", "", "Name of the subguide to unlink")
+	unlinkCmd.Flags().StringVarP(&unlinkSubguide, "subguide", "s", "", "Name of the subguide to unlink")
+	unlinkCmd.Flags().StringVar(&unlinkSubguide, "sub", "", "Alias for --subguide")
 	unlinkCmd.Flags().StringVar(&unlinkPrereq, "prereq", "", "Name of the prerequisite guide to unlink")
 
 	rootCmd.AddCommand(unlinkCmd)

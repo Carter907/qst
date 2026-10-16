@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -28,11 +27,12 @@ qst view . > graph.md`,
 
 		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			fmt.Printf("Error parsing graph: %v\n", err)
-			os.Exit(1)
+			cmd.PrintErrf("Error parsing graph: %v\n", err)
+			exitFunc(1)
+			return
 		}
 
-		fmt.Println(generateMermaid(guides))
+		cmd.Println(generateMermaid(guides))
 	},
 }
 
