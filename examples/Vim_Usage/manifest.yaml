@@ -1,0 +1,112 @@
+title: Vim Usage Knowledge Graph
+description: A comprehensive knowledge graph covering modal editing, navigation mechanics, operator-motion grammar, precision text objects, pattern search and replacement, registers, macros, multi-window workspaces, and runtime configuration based on Vimtutor and advanced editing paradigms.
+scopes:
+  - definition
+  - description
+  - explanation
+  - lesson
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: true
+strict_coverage: false
+tours:
+  - name: Vimtutor Essentials Tour
+    guides:
+      - Normal Mode
+      - Character Motions hjkl
+      - Insert and Append Mode
+      - Delete and Cut Operations
+      - Undo and Redo
+      - The Operator-Motion Rule
+      - Change and Replace Operations
+      - Yank and Put Mechanics
+      - Line Number Navigation
+      - Pattern Search Forward and Backward
+      - Bracket and Delimiter Matching
+      - Line and Global Substitution
+      - External Shell Commands and Filtering
+      - Built-in Help System
+  - name: Speed Editing and Text Objects Tour
+    guides:
+      - The Operator-Motion Rule
+      - Word Text Objects
+      - Delimiter and Quote Text Objects
+      - Block and Tag Text Objects
+      - The Dot Command
+      - Vim Registers and System Clipboard
+      - Macro Recording and Playback
+  - name: Precision Navigation Tour
+    guides:
+      - Character Motions hjkl
+      - Word and WORD Navigation
+      - Line Start and End Motions
+      - In-Line Character Search
+      - Line Number Navigation
+      - Screen and Scrolling Navigation
+      - Bracket and Delimiter Matching
+      - Pattern Search Forward and Backward
+      - Search Options and Highlighting
+  - name: Workspace and Environment Tour
+    guides:
+      - Normal Mode
+      - Command-Line Mode
+      - Buffer Management
+      - Split Window Navigation
+      - Tab Pages
+      - External Shell Commands and Filtering
+      - Built-in Help System
+      - Vimrc Configuration and Customization
+  - name: Full Course Tour
+    guides:
+      - Normal Mode
+      - Insert and Append Mode
+      - Command-Line Mode
+      - Visual Mode
+      - Modal Architecture and State
+      - Character Motions hjkl
+      - Word and WORD Navigation
+      - Line Start and End Motions
+      - Screen and Scrolling Navigation
+      - Basic and Word Motions
+      - In-Line Character Search
+      - Line Number Navigation
+      - Bracket and Delimiter Matching
+      - Targeted Line and Find Motions
+      - Vim Core Concepts and Navigation
+      - The Operator-Motion Rule
+      - The Dot Command
+      - Undo and Redo
+      - Operator Motion Grammar
+      - Delete and Cut Operations
+      - Change and Replace Operations
+      - Yank and Put Mechanics
+      - Core Deletion and Modification
+      - Word Text Objects
+      - Delimiter and Quote Text Objects
+      - Block and Tag Text Objects
+      - Precision Editing with Text Objects
+      - Editing Operations and Text Objects
+      - Pattern Search Forward and Backward
+      - Search Options and Highlighting
+      - Search Navigation and Highlighting
+      - Line and Global Substitution
+      - Substitution Flags and Confirmation
+      - The Substitute Command and Ranges
+      - Search Substitution and Pattern Matching
+      - Vim Registers and System Clipboard
+      - Macro Recording and Playback
+      - Registers Clipboard and Macros
+      - Buffer Management
+      - Split Window Navigation
+      - Tab Pages
+      - Workspaces Buffers Windows and Tabs
+      - External Shell Commands and Filtering
+      - Built-in Help System
+      - Vimrc Configuration and Customization
+      - Configuration External Tools and Help
+      - Advanced Workflows and Environment Control
+      - Mastering Vim
