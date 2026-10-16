@@ -16,6 +16,7 @@ This document tracks completed enhancements and open high-impact tasks across th
 - [x] **Scope-Layered Subgraphs with Horizontal Flow**: Formatted index Mermaid diagram with top-down scope subgraphs containing horizontal (`direction LR`) intra-scope node flow (`mermaid.go`).
 - [x] **Academic Styling & Gutter Line Numbering**: Integrated dedicated line markers with hair-line gutter numbering, booktabs-style tables, and serif typography (`style.css`, `engine.go`).
 - [x] **Zip Slip / Path Traversal Protection in KaTeX Downloader**: Refactored tar extraction into `extractTar` with directory traversal validation (`strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator))`) to prevent malicious archives from extracting files outside `destDir` (`download.go`, `download_test.go`).
+- [x] **Network Robustness & Offline Builds (`qst build --offline`)**: Hardened HTTP requests with 30-second timeouts, added `--offline` flag to compile without network calls, integrated shared cross-platform user caching (`~/.cache/qst/vendor`), and added `--vendor-dir` / `QST_VENDOR_DIR` custom asset sourcing for air-gapped systems (`cmd/build.go`, `internal/ssg/download.go`, `internal/ssg/engine.go`).
 
 ### 2. Graph Core & Relationship Logic (`internal/graph/`)
 - [x] **Flexible Configuration File Naming**: `ParseConfig` now supports falling back from `manifest.yaml` to `quest.yaml` seamlessly (`parser.go`).
@@ -66,9 +67,6 @@ This document tracks completed enhancements and open high-impact tasks across th
 - [ ] **Guide-Specific Localized Mermaid Subgraphs**:
   - *Location*: `internal/ssg/engine.go`, `internal/ssg/mermaid.go`, `internal/ssg/templates/guide.html`
   - *Details*: While `index.html` embeds a global diagram, individual guide pages currently lack localized context. Render a focused 1-hop or 2-hop neighborhood Mermaid subgraph in the guide footer/appendix showing immediate prerequisites, dependents, and subguides with interactive zoom/pan controls.
-- [ ] **Network Robustness & Offline Builds**:
-  - *Location*: `internal/ssg/download.go:21,77`, `cmd/build.go`
-  - *Details*: `http.Get` uses the default HTTP client without timeouts. Add a configured `http.Client` with timeout (e.g., 30s), and introduce an `--offline` / `--skip-vendor` flag to `qst build` to allow building in air-gapped environments when vendor assets are already present or external assets are pre-cached.
 - [ ] **Built-in Local Development Server (`qst serve`)**:
   - *Location*: `cmd/serve.go`, `internal/ssg/`
   - *Details*: Introduce `qst serve [directory] [--port 8080] [--watch]` to run a lightweight local static HTTP server for browsing compiled sites without external tooling, optionally monitoring guide markdown and manifest changes to auto-rebuild.
