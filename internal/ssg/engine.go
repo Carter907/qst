@@ -226,7 +226,29 @@ func relURL(fromOutRelPath, toOutRelPath string) string {
 	return filepath.ToSlash(rel)
 }
 
+// BuildOptions defines configuration options for compiling a static site.
+type BuildOptions struct {
+	DirPath   string
+	OutDir    string
+	Offline   bool
+	VendorDir string
+	CacheDir  string
+	WarnFunc  func(format string, args ...any)
+}
+
+// BuildSite compiles the static site from dirPath into outDir with default options.
 func BuildSite(dirPath string, outDir string) error {
+	return BuildSiteWithOptions(BuildOptions{
+		DirPath: dirPath,
+		OutDir:  outDir,
+	})
+}
+
+// BuildSiteWithOptions compiles the static site using the provided options.
+func BuildSiteWithOptions(opts BuildOptions) error {
+	dirPath := opts.DirPath
+	outDir := opts.OutDir
+
 	config, err := graph.ParseConfig(dirPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse manifest: %w", err)
@@ -237,9 +259,15 @@ func BuildSite(dirPath string, outDir string) error {
 		return fmt.Errorf("failed to create outDir: %w", err)
 	}
 
-	// 1. Download vendor assets to outDir/assets/vendor
-	if err := DownloadAssets(outDir); err != nil {
-		return fmt.Errorf("failed to download vendor assets: %w", err)
+	// 1. Prepare vendor assets in outDir/assets/vendor
+	vendorOpts := VendorOptions{
+		Offline:   opts.Offline,
+		VendorDir: opts.VendorDir,
+		CacheDir:  opts.CacheDir,
+		WarnFunc:  opts.WarnFunc,
+	}
+	if err := EnsureVendorAssets(outDir, vendorOpts); err != nil {
+		return fmt.Errorf("failed to prepare vendor assets: %w", err)
 	}
 
 	// 2. Copy style.css to outDir/assets
