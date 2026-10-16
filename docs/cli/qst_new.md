@@ -26,8 +26,9 @@ qst new --starter
 ### Options
 
 ```
-  -h, --help      help for new
-  -s, --starter   Initialize with a starter markdown guide
+  -h, --help              help for new
+  -s, --starter           Initialize with a starter markdown guide
+      --strict-coverage   Enable strict coverage mode in manifest.yaml
 ```
 
 ### SEE ALSO
