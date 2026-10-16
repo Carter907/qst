@@ -1,5 +1,5 @@
-title: Your New Knowledge
-description: What can you say about this knowledge?
+title: C Strings Knowledge Graph
+description: "A comprehensive knowledge graph covering string representation, pointer vs array semantics, <string.h> functions, memory safety, and command-line arguments based on Chapter 13 of C Programming: A Modern Approach."
 scopes:
   - definition
   - description
@@ -12,5 +12,57 @@ adherences:
   - vague
 relaxed_subguides: false
 require_subguides: true
-strict_coverage: true
+strict_coverage: false
 tours:
+  - name: Full Course Tour
+    guides:
+      - Null Character
+      - String Literals
+      - Strings v.s. Character
+      - Undefined Behavior in Strings
+      - String Variables
+      - String Initialization
+      - Pointers to String Literals
+      - String Storage and Representation
+      - Declaring and Initializing Strings
+      - String Fundamentals and Memory Layout
+      - String Input with Scanf
+      - String Input with Gets and Fgets
+      - String Output with Printf and Puts
+      - String Input and Output Operations
+      - The string.h Header
+      - strlen Function
+      - strcpy Function
+      - strcat Function
+      - strcmp Function
+      - Standard String Library Operations
+      - String IO and Library Manipulation
+      - Bounded String Functions
+      - Safe String Handling and Bounded Operations
+      - Arrays of Strings
+      - Command Line Arguments
+      - String Arrays and Command Line Arguments
+      - String Safety Idioms and Multi-String Structures
+      - Chapter 13 Strings
+  - name: String Manipulation Quickstart
+    guides:
+      - Null Character
+      - String Literals
+      - String Variables
+      - String Initialization
+      - String Input with Scanf
+      - String Output with Printf and Puts
+      - strlen Function
+      - strcpy Function
+      - strcat Function
+      - strcmp Function
+  - name: String Safety and Memory Tour
+    guides:
+      - Null Character
+      - String Literals
+      - Pointers to String Literals
+      - Undefined Behavior in Strings
+      - String Input with Gets and Fgets
+      - Bounded String Functions
+      - Safe String Handling and Bounded Operations
+      - String Safety Idioms and Multi-String Structures
