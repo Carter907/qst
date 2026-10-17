@@ -17,6 +17,8 @@ This document tracks completed enhancements and open high-impact tasks across th
 - [x] **Academic Styling & Gutter Line Numbering**: Integrated dedicated line markers with hair-line gutter numbering, booktabs-style tables, and serif typography (`style.css`, `engine.go`).
 - [x] **Zip Slip / Path Traversal Protection in KaTeX Downloader**: Refactored tar extraction into `extractTar` with directory traversal validation (`strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator))`) to prevent malicious archives from extracting files outside `destDir` (`download.go`, `download_test.go`).
 - [x] **Network Robustness & Offline Builds (`qst build --offline`)**: Hardened HTTP requests with 30-second timeouts, added `--offline` flag to compile without network calls, integrated shared cross-platform user caching (`~/.cache/qst/vendor`), and added `--vendor-dir` / `QST_VENDOR_DIR` custom asset sourcing for air-gapped systems (`cmd/build.go`, `internal/ssg/download.go`, `internal/ssg/engine.go`).
+- [x] **Guide-Specific Localized Mermaid Subgraphs (`guide.html`, `qst view --guide`)**: Generates forward-only 1-hop localized subgraphs in the guide appendix as clean static academic figure plates with standardized `<Scope>: <Title>` node labels, active guide highlighting (`classDef currentGuide`), relative click navigation, and added CLI localized filtering via `qst view --guide <name>` (`mermaid.go`, `guide.html`, `engine.go`, `cmd/view.go`).
+- [x] **Structured Academic Syllabus Homepage (`index.html`)**: Replaced generic home page Mermaid flowchart with an organized, booktabs-style curriculum catalog grouped top-down by scope hierarchy (Lessons → Explanations → Definitions) with guide links, prerequisite badges, and tag chips (`index.html`, `engine.go`, `style.css`).
 
 ### 2. Graph Core & Relationship Logic (`internal/graph/`)
 - [x] **Flexible Configuration File Naming**: `ParseConfig` now supports falling back from `manifest.yaml` to `quest.yaml` seamlessly (`parser.go`).
@@ -64,9 +66,6 @@ This document tracks completed enhancements and open high-impact tasks across th
 ## Open Tasks & Next Enhancements
 
 ### 1. Static Site Generator (`internal/ssg/`)
-- [ ] **Guide-Specific Localized Mermaid Subgraphs**:
-  - *Location*: `internal/ssg/engine.go`, `internal/ssg/mermaid.go`, `internal/ssg/templates/guide.html`
-  - *Details*: While `index.html` embeds a global diagram, individual guide pages currently lack localized context. Render a focused 1-hop or 2-hop neighborhood Mermaid subgraph in the guide footer/appendix showing immediate prerequisites, dependents, and subguides with interactive zoom/pan controls.
 - [ ] **Built-in Local Development Server (`qst serve`)**:
   - *Location*: `cmd/serve.go`, `internal/ssg/`
   - *Details*: Introduce `qst serve [directory] [--port 8080] [--watch]` to run a lightweight local static HTTP server for browsing compiled sites without external tooling, optionally monitoring guide markdown and manifest changes to auto-rebuild.
