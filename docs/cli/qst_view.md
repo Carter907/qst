@@ -4,7 +4,9 @@ Export the knowledge graph to a Mermaid.js diagram
 
 ### Synopsis
 
-The view command reads the knowledge directory and exports its structure as a Mermaid.js graph. Prerequisite links are shown as solid arrows, and sub-guide relationships are shown as dotted arrows.
+The view command reads the knowledge directory and exports its structure as a Mermaid.js graph.
+Prerequisite links are shown as solid arrows, and sub-guide relationships are shown as dotted arrows.
+Use --guide (-g) to export a localized forward-only subgraph centered on a specific guide.
 
 ```
 qst view [directory] [flags]
@@ -13,8 +15,11 @@ qst view [directory] [flags]
 ### Examples
 
 ```
-# Output mermaid to stdout
+# Output global mermaid to stdout
 qst view my_knowledge_graph_dir/
+
+# Output localized subgraph for a specific guide
+qst view . --guide "Printf Function"
 
 # Save to a markdown file
 qst view . > graph.md
@@ -23,7 +28,8 @@ qst view . > graph.md
 ### Options
 
 ```
-  -h, --help   help for view
+  -g, --guide string   Export localized subgraph centered on a specific guide
+  -h, --help           help for view
 ```
 
 ### SEE ALSO
