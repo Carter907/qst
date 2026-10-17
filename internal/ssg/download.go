@@ -271,15 +271,11 @@ func EnsureVendorAssets(outDir string, opts VendorOptions) error {
 				if err2 := downloadKaTeX(vendorDir); err2 != nil {
 					return fmt.Errorf("failed to download KaTeX: %w", err)
 				}
-				hasKatexDest = true
 			} else {
 				return fmt.Errorf("failed to download KaTeX: %w", err)
 			}
-		} else {
-			if destForDownload != vendorDir {
-				_ = copyDir(filepath.Join(destForDownload, "katex"), filepath.Join(vendorDir, "katex"))
-			}
-			hasKatexDest = true
+		} else if destForDownload != vendorDir {
+			_ = copyDir(filepath.Join(destForDownload, "katex"), filepath.Join(vendorDir, "katex"))
 		}
 	}
 
@@ -289,15 +285,11 @@ func EnsureVendorAssets(outDir string, opts VendorOptions) error {
 				if err2 := downloadMermaid(vendorDir); err2 != nil {
 					return fmt.Errorf("failed to download Mermaid: %w", err)
 				}
-				hasMermaidDest = true
 			} else {
 				return fmt.Errorf("failed to download Mermaid: %w", err)
 			}
-		} else {
-			if destForDownload != vendorDir {
-				_ = copyDir(filepath.Join(destForDownload, "mermaid"), filepath.Join(vendorDir, "mermaid"))
-			}
-			hasMermaidDest = true
+		} else if destForDownload != vendorDir {
+			_ = copyDir(filepath.Join(destForDownload, "mermaid"), filepath.Join(vendorDir, "mermaid"))
 		}
 	}
 
