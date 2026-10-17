@@ -15,40 +15,13 @@
     {{ .Content }}
   </div>
 
-  {{ if or .Prerequisites .SubGuides }}
+  {{ if .MermaidGraph }}
   <footer class="guide-appendix">
     <h2 class="appendix-title">References & Relations</h2>
-    <div class="appendix-grid">
-      {{ if .Prerequisites }}
-      <div class="appendix-section">
-        <h3>Prerequisites</h3>
-        <ul class="appendix-list">
-          {{ range .Prerequisites }}
-          <li>
-            {{ if .URL }}<a href="{{ .URL }}">{{ .Title }}</a>{{ else }}<span>{{ .Title }}</span>{{ end }}
-            {{ if .Scope }}<span class="appendix-meta">({{ .Scope }})</span>{{ end }}
-          </li>
-          {{ end }}
-        </ul>
-      </div>
-      {{ end }}
-
-      {{ if .SubGuides }}
-      <div class="appendix-section">
-        <h3>Sub-Guides</h3>
-        <ul class="appendix-list">
-          {{ range .SubGuides }}
-          <li>
-            {{ if .URL }}<a href="{{ .URL }}">{{ .Title }}</a>{{ else }}<span>{{ .Title }}</span>{{ end }}
-            {{ if .Scope }}<span class="appendix-meta">({{ .Scope }})</span>{{ end }}
-            {{ if .Adherence }}<span class="appendix-adherence">[{{ .Adherence }}]</span>{{ end }}
-            {{ if .Segment }}<span class="appendix-segment">lines {{ .Segment }}</span>{{ end }}
-          </li>
-          {{ end }}
-        </ul>
-      </div>
-      {{ end }}
-    </div>
+    <figure class="appendix-figure">
+      <pre><code class="language-mermaid">{{ .MermaidGraph }}</code></pre>
+      <figcaption class="appendix-caption">Figure: Localized concept horizon. Solid arrows indicate prerequisites; dashed arrows indicate sub-guide decomposition.</figcaption>
+    </figure>
   </footer>
   {{ end }}
 </article>

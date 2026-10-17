@@ -5,26 +5,73 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/Carter907/qst/internal/graph"
 )
 
-// generateIndexMermaid produces a Mermaid diagram definition representing the
-// complete knowledge graph for embedding on the home page (index.html).
-// Guides are partitioned into scope subgraphs with horizontal flow (direction LR)
-// ordered top-down according to the manifest scope hierarchy.
-func generateIndexMermaid(config graph.Manifest, guideFiles []*guideFile, filesByID map[string]*guideFile) string {
-	if len(guideFiles) == 0 {
+func cleanMermaidID(id string) string {
+	var sb strings.Builder
+	for _, r := range strings.ToLower(id) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			sb.WriteRune(r)
+		} else {
+			sb.WriteRune('_')
+		}
+	}
+	s := sb.String()
+	s = strings.Trim(s, "_")
+	if s == "" || (s[0] >= '0' && s[0] <= '9') {
+		s = "node_" + s
+	}
+	return s
+}
+
+// formatGuideNodeLabel formats a guide node label with a capitalized scope prefix
+// according to the academic format: "<Scope>: <Title>" (e.g. "Explanation: De Morgan's Laws").
+// If no scope is present, it returns the escaped title.
+func formatGuideNodeLabel(id string, sc string) string {
+	escapedID := strings.ReplaceAll(id, "\"", "#quot;")
+	if sc == "" {
+		return escapedID
+	}
+	escapedScope := strings.ReplaceAll(sc, "\"", "#quot;")
+	r := []rune(escapedScope)
+	capScope := string(unicode.ToUpper(r[0])) + string(r[1:])
+	return fmt.Sprintf("%s: %s", capScope, escapedID)
+}
+
+// generateGuideMermaid produces a Mermaid diagram representing the localized
+// forward-only 1-hop neighborhood for a specific guide (the guide itself,
+// its prerequisites, and its subguides) in an open monochrome academic LR layout.
+// Neighbor nodes include clickable hyperlinks to their respective guide pages.
+func generateGuideMermaid(currentGF *guideFile, config graph.Manifest, filesByID map[string]*guideFile) string {
+	if currentGF == nil {
+		return ""
+	}
+
+	prereqs := currentGF.guide.Metadata.Prerequisites
+	subguides := currentGF.guide.Metadata.SubGuides
+	if len(prereqs) == 0 && len(subguides) == 0 {
 		return ""
 	}
 
 	var sb strings.Builder
-	sb.WriteString("graph TD\n")
+	sb.WriteString("graph LR\n")
 
-	// 1. Collect and sort all guide IDs for deterministic output
+	// 1. Collect all unique guide IDs in this forward-only 1-hop horizon
+	seen := make(map[string]bool)
+	seen[currentGF.guide.ID] = true
+	for _, p := range prereqs {
+		seen[p] = true
+	}
+	for _, s := range subguides {
+		seen[s.Guide] = true
+	}
+
 	var ids []string
-	for _, gf := range guideFiles {
-		ids = append(ids, gf.guide.ID)
+	for id := range seen {
+		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 
@@ -44,168 +91,81 @@ func generateIndexMermaid(config graph.Manifest, guideFiles []*guideFile, filesB
 		nodeIDs[id] = candidate
 	}
 
-	// Helper to generate unique subgraph ID
-	getSubgraphID := func(sc string) string {
-		clean := cleanMermaidID(sc)
-		if sc == "" || clean == "node_" {
-			clean = "other"
-		}
-		base := "scope_" + clean
-		candidate := base
-		counter := 1
-		for usedIDs[candidate] {
-			counter++
-			candidate = fmt.Sprintf("%s_%d", base, counter)
-		}
-		usedIDs[candidate] = true
-		return candidate
-	}
-
-	// 3. Group guide IDs by scope (preserves sorted guide ID order)
-	guidesByScope := make(map[string][]string)
+	// 3. Declare nodes with academic scope prefix
 	for _, id := range ids {
-		gf := filesByID[id]
-		if gf == nil {
-			continue
-		}
-		sc := gf.guide.Metadata.Scope
-		guidesByScope[sc] = append(guidesByScope[sc], id)
-	}
-
-	// 4. Order scopes top-down (highest scope level at the top, lowest at bottom)
-	var orderedScopes []string
-	seenScopes := make(map[string]bool)
-
-	for i := len(config.Scopes) - 1; i >= 0; i-- {
-		sc := config.Scopes[i]
-		if len(guidesByScope[sc]) > 0 && !seenScopes[sc] {
-			orderedScopes = append(orderedScopes, sc)
-			seenScopes[sc] = true
-		}
-	}
-
-	var otherScopes []string
-	for sc := range guidesByScope {
-		if !seenScopes[sc] {
-			otherScopes = append(otherScopes, sc)
-		}
-	}
-	sort.Strings(otherScopes)
-	orderedScopes = append(orderedScopes, otherScopes...)
-
-	// 5. Render scope subgraphs with direction LR
-	seenEdges := make(map[string]bool)
-
-	for _, sc := range orderedScopes {
-		scopeGuideIDs := guidesByScope[sc]
-		if len(scopeGuideIDs) == 0 {
-			continue
-		}
-
-		subgraphID := getSubgraphID(sc)
-		scopeLabel := sc
-		if scopeLabel == "" {
-			scopeLabel = "other"
-		}
-		escapedScopeLabel := strings.ReplaceAll(scopeLabel, "\"", "#quot;")
-
-		fmt.Fprintf(&sb, "    subgraph %s [\"Scope: %s\"]\n", subgraphID, escapedScopeLabel)
-		sb.WriteString("        direction LR\n")
-
-		// Declare nodes in this scope
-		for _, id := range scopeGuideIDs {
-			nodeID := nodeIDs[id]
-			label := id
-			escapedLabel := strings.ReplaceAll(label, "\"", "#quot;")
-			fmt.Fprintf(&sb, "        %s[\"%s\"]\n", nodeID, escapedLabel)
-		}
-
-		// Intra-scope edges: prerequisites between guides in the same scope
-		var intraEdges []string
-		for _, id := range scopeGuideIDs {
-			gf := filesByID[id]
-			if gf == nil {
-				continue
-			}
-			nodeID := nodeIDs[id]
-			for _, prereq := range gf.guide.Metadata.Prerequisites {
-				prereqGF := filesByID[prereq]
-				if prereqGF != nil && prereqGF.guide.Metadata.Scope == sc {
-					prereqID, exists := nodeIDs[prereq]
-					if exists {
-						edgeKey := fmt.Sprintf("%s-->%s", prereqID, nodeID)
-						if !seenEdges[edgeKey] {
-							seenEdges[edgeKey] = true
-							intraEdges = append(intraEdges, fmt.Sprintf("        %s --> %s", prereqID, nodeID))
-						}
-					}
-				}
-			}
-		}
-		sort.Strings(intraEdges)
-		for _, edge := range intraEdges {
-			sb.WriteString(edge)
-			sb.WriteString("\n")
-		}
-
-		sb.WriteString("    end\n")
-	}
-
-	// 6. Cross-scope and hierarchical edges
-	var crossEdges []string
-	for _, id := range ids {
-		gf := filesByID[id]
-		if gf == nil {
-			continue
-		}
 		nodeID := nodeIDs[id]
-		currentScope := gf.guide.Metadata.Scope
-
-		// Solid links: cross-scope prerequisites (if any)
-		for _, prereq := range gf.guide.Metadata.Prerequisites {
-			prereqGF := filesByID[prereq]
-			if prereqGF == nil || prereqGF.guide.Metadata.Scope != currentScope {
-				prereqID, exists := nodeIDs[prereq]
-				if exists {
-					edgeKey := fmt.Sprintf("%s-->%s", prereqID, nodeID)
-					if !seenEdges[edgeKey] {
-						seenEdges[edgeKey] = true
-						crossEdges = append(crossEdges, fmt.Sprintf("    %s --> %s", prereqID, nodeID))
-					}
-				}
-			}
+		sc := ""
+		if gf := filesByID[id]; gf != nil {
+			sc = gf.guide.Metadata.Scope
 		}
+		label := formatGuideNodeLabel(id, sc)
+		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", nodeID, label)
+	}
+	sb.WriteString("\n")
 
-		// Dotted links: Current -> Subguide (cross-scope / hierarchical)
-		for _, sub := range gf.guide.Metadata.SubGuides {
-			subID, exists := nodeIDs[sub.Guide]
-			if exists {
-				edgeKey := fmt.Sprintf("%s-.->%s", nodeID, subID)
-				if !seenEdges[edgeKey] {
-					seenEdges[edgeKey] = true
-					crossEdges = append(crossEdges, fmt.Sprintf("    %s -.-> %s", nodeID, subID))
-				}
+	// 4. Edges
+	seenEdges := make(map[string]bool)
+	currentNodeID := nodeIDs[currentGF.guide.ID]
+
+	var prereqEdges []string
+	for _, p := range prereqs {
+		pNodeID, exists := nodeIDs[p]
+		if exists {
+			edgeKey := fmt.Sprintf("%s-->%s", pNodeID, currentNodeID)
+			if !seenEdges[edgeKey] {
+				seenEdges[edgeKey] = true
+				prereqEdges = append(prereqEdges, fmt.Sprintf("    %s --> %s", pNodeID, currentNodeID))
 			}
 		}
 	}
-	sort.Strings(crossEdges)
-	if len(crossEdges) > 0 {
+	sort.Strings(prereqEdges)
+	for _, edge := range prereqEdges {
+		sb.WriteString(edge)
 		sb.WriteString("\n")
-		for _, edge := range crossEdges {
-			sb.WriteString(edge)
-			sb.WriteString("\n")
-		}
 	}
 
-	// 7. Click directives for interactive navigation
+	var subEdges []string
+	for _, sub := range subguides {
+		subNodeID, exists := nodeIDs[sub.Guide]
+		if exists {
+			edgeKey := fmt.Sprintf("%s-.->%s", currentNodeID, subNodeID)
+			if !seenEdges[edgeKey] {
+				seenEdges[edgeKey] = true
+				edgeLabel := ""
+				if sub.Adherence != "" && sub.Segment != "" {
+					edgeLabel = fmt.Sprintf("%s [%s]", sub.Adherence, sub.Segment)
+				} else if sub.Adherence != "" {
+					edgeLabel = sub.Adherence
+				} else if sub.Segment != "" {
+					edgeLabel = fmt.Sprintf("[%s]", sub.Segment)
+				}
+				if edgeLabel != "" {
+					escapedEdgeLabel := strings.ReplaceAll(edgeLabel, "\"", "#quot;")
+					subEdges = append(subEdges, fmt.Sprintf("    %s -.->|\"%s\"| %s", currentNodeID, escapedEdgeLabel, subNodeID))
+				} else {
+					subEdges = append(subEdges, fmt.Sprintf("    %s -.-> %s", currentNodeID, subNodeID))
+				}
+			}
+		}
+	}
+	sort.Strings(subEdges)
+	for _, edge := range subEdges {
+		sb.WriteString(edge)
+		sb.WriteString("\n")
+	}
+
+	// 5. Click directives for interactive navigation
 	var clickLines []string
 	for _, id := range ids {
+		if id == currentGF.guide.ID {
+			continue
+		}
 		gf := filesByID[id]
 		if gf == nil {
 			continue
 		}
 		nodeID := nodeIDs[id]
-		targetURL := relURL("index.html", gf.outRelPath)
+		targetURL := relURL(currentGF.outRelPath, gf.outRelPath)
 		u := (&url.URL{Path: targetURL}).EscapedPath()
 		clickLines = append(clickLines, fmt.Sprintf("    click %s href \"%s\"", nodeID, u))
 	}
@@ -218,22 +178,131 @@ func generateIndexMermaid(config graph.Manifest, guideFiles []*guideFile, filesB
 		}
 	}
 
+	// 6. Monochrome academic styles
+	sb.WriteString("\n")
+	sb.WriteString("    classDef default fill:#ffffff,stroke:#1f2937,stroke-width:1.2px,rx:3px,ry:3px;\n")
+	sb.WriteString("    classDef currentGuide fill:#f9fafb,stroke:#000000,stroke-width:2.5px,font-weight:bold;\n")
+	fmt.Fprintf(&sb, "    class %s currentGuide;\n", currentNodeID)
+
 	return sb.String()
 }
 
-func cleanMermaidID(id string) string {
+// GenerateGuideMermaidText generates a localized Mermaid diagram markdown code block
+// for a specific guide in a knowledge graph (without click URLs) in open monochrome academic LR layout.
+func GenerateGuideMermaidText(guideID string, guides map[string]graph.Guide, config graph.Manifest) (string, error) {
+	guide, exists := guides[guideID]
+	if !exists {
+		return "", fmt.Errorf("guide '%s' not found in graph", guideID)
+	}
+
+	prereqs := guide.Metadata.Prerequisites
+	subguides := guide.Metadata.SubGuides
+
 	var sb strings.Builder
-	for _, r := range strings.ToLower(id) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
-			sb.WriteRune(r)
-		} else {
-			sb.WriteRune('_')
+	sb.WriteString("```mermaid\ngraph LR\n")
+
+	// 1. Collect all unique guide IDs
+	seen := make(map[string]bool)
+	seen[guideID] = true
+	for _, p := range prereqs {
+		seen[p] = true
+	}
+	for _, s := range subguides {
+		seen[s.Guide] = true
+	}
+
+	var ids []string
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	// 2. Map guide IDs to unique safe Mermaid node identifiers
+	nodeIDs := make(map[string]string, len(ids))
+	usedIDs := make(map[string]bool, len(ids))
+
+	for _, id := range ids {
+		clean := cleanMermaidID(id)
+		candidate := clean
+		counter := 1
+		for usedIDs[candidate] {
+			counter++
+			candidate = fmt.Sprintf("%s_%d", clean, counter)
+		}
+		usedIDs[candidate] = true
+		nodeIDs[id] = candidate
+	}
+
+	// 3. Declare nodes with academic scope prefix
+	for _, id := range ids {
+		nodeID := nodeIDs[id]
+		sc := ""
+		if g, ok := guides[id]; ok {
+			sc = g.Metadata.Scope
+		}
+		label := formatGuideNodeLabel(id, sc)
+		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", nodeID, label)
+	}
+	sb.WriteString("\n")
+
+	// 4. Edges
+	seenEdges := make(map[string]bool)
+	currentNodeID := nodeIDs[guideID]
+
+	var prereqEdges []string
+	for _, p := range prereqs {
+		pNodeID, exists := nodeIDs[p]
+		if exists {
+			edgeKey := fmt.Sprintf("%s-->%s", pNodeID, currentNodeID)
+			if !seenEdges[edgeKey] {
+				seenEdges[edgeKey] = true
+				prereqEdges = append(prereqEdges, fmt.Sprintf("    %s --> %s", pNodeID, currentNodeID))
+			}
 		}
 	}
-	s := sb.String()
-	s = strings.Trim(s, "_")
-	if s == "" || (s[0] >= '0' && s[0] <= '9') {
-		s = "node_" + s
+	sort.Strings(prereqEdges)
+	for _, edge := range prereqEdges {
+		sb.WriteString(edge)
+		sb.WriteString("\n")
 	}
-	return s
+
+	var subEdges []string
+	for _, sub := range subguides {
+		subNodeID, exists := nodeIDs[sub.Guide]
+		if exists {
+			edgeKey := fmt.Sprintf("%s-.->%s", currentNodeID, subNodeID)
+			if !seenEdges[edgeKey] {
+				seenEdges[edgeKey] = true
+				edgeLabel := ""
+				if sub.Adherence != "" && sub.Segment != "" {
+					edgeLabel = fmt.Sprintf("%s [%s]", sub.Adherence, sub.Segment)
+				} else if sub.Adherence != "" {
+					edgeLabel = sub.Adherence
+				} else if sub.Segment != "" {
+					edgeLabel = fmt.Sprintf("[%s]", sub.Segment)
+				}
+				if edgeLabel != "" {
+					escapedEdgeLabel := strings.ReplaceAll(edgeLabel, "\"", "#quot;")
+					subEdges = append(subEdges, fmt.Sprintf("    %s -.->|\"%s\"| %s", currentNodeID, escapedEdgeLabel, subNodeID))
+				} else {
+					subEdges = append(subEdges, fmt.Sprintf("    %s -.-> %s", currentNodeID, subNodeID))
+				}
+			}
+		}
+	}
+	sort.Strings(subEdges)
+	for _, edge := range subEdges {
+		sb.WriteString(edge)
+		sb.WriteString("\n")
+	}
+
+	// 5. Monochrome academic styles
+	sb.WriteString("\n")
+	sb.WriteString("    classDef default fill:#ffffff,stroke:#1f2937,stroke-width:1.2px,rx:3px,ry:3px;\n")
+	sb.WriteString("    classDef currentGuide fill:#f9fafb,stroke:#000000,stroke-width:2.5px,font-weight:bold;\n")
+	fmt.Fprintf(&sb, "    class %s currentGuide;\n", currentNodeID)
+	sb.WriteString("```")
+
+	return sb.String(), nil
 }
+

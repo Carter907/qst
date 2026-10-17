@@ -80,6 +80,19 @@ type PageData struct {
 	TourSteps     []TourStepRef
 	RelativeRoot  string
 	Sidebar       SidebarData
+	MermaidGraph  template.HTML
+}
+
+type SyllabusGuideRef struct {
+	Title         string
+	URL           string
+	Prerequisites []GuideRef
+	Tags          []string
+}
+
+type SyllabusScopeSection struct {
+	Scope  string
+	Guides []SyllabusGuideRef
 }
 
 type IndexPageData struct {
@@ -87,7 +100,7 @@ type IndexPageData struct {
 	Description  string
 	RelativeRoot string
 	Sidebar      SidebarData
-	MermaidGraph template.HTML
+	Scopes       []SyllabusScopeSection
 }
 
 type guideFile struct {
@@ -484,6 +497,8 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		sidebar := buildSidebar(gf.outRelPath, gf.guide.ID, config, guideFiles, filesByID)
 		tourSteps := buildTourSteps(gf, config, filesByID)
 
+		guideMermaid := generateGuideMermaid(gf, config, filesByID)
+
 		data := PageData{
 			Title:         gf.guide.ID,
 			Scope:         gf.guide.Metadata.Scope,
@@ -496,6 +511,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			TourSteps:     tourSteps,
 			RelativeRoot:  gf.relRoot,
 			Sidebar:       sidebar,
+			MermaidGraph:  template.HTML(guideMermaid),
 		}
 
 		f, err := os.Create(gf.outPath)
@@ -512,13 +528,13 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 
 	// 8. Generate Index Page
 	indexSidebar := buildSidebar("index.html", "", config, guideFiles, filesByID)
-	indexMermaid := generateIndexMermaid(config, guideFiles, filesByID)
+	syllabusScopes := buildSyllabusScopes(config, guideFiles, filesByID)
 	indexData := IndexPageData{
 		Title:        config.Title,
 		Description:  config.Description,
 		RelativeRoot: "",
 		Sidebar:      indexSidebar,
-		MermaidGraph: template.HTML(indexMermaid),
+		Scopes:       syllabusScopes,
 	}
 
 	idxOutPath := filepath.Join(outDir, "index.html")
@@ -533,6 +549,86 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 	}
 
 	return nil
+}
+
+func buildSyllabusScopes(config graph.Manifest, guideFiles []*guideFile, filesByID map[string]*guideFile) []SyllabusScopeSection {
+	guidesByScope := make(map[string][]*guideFile)
+	for _, gf := range guideFiles {
+		sc := gf.guide.Metadata.Scope
+		guidesByScope[sc] = append(guidesByScope[sc], gf)
+	}
+
+	var orderedScopes []string
+	seenScopes := make(map[string]bool)
+
+	// Top-down: Broadest (highest hierarchy index) down to foundational (index 0)
+	for i := len(config.Scopes) - 1; i >= 0; i-- {
+		sc := config.Scopes[i]
+		if len(guidesByScope[sc]) > 0 && !seenScopes[sc] {
+			orderedScopes = append(orderedScopes, sc)
+			seenScopes[sc] = true
+		}
+	}
+
+	var otherScopes []string
+	for sc := range guidesByScope {
+		if !seenScopes[sc] {
+			otherScopes = append(otherScopes, sc)
+		}
+	}
+	sort.Strings(otherScopes)
+	orderedScopes = append(orderedScopes, otherScopes...)
+
+	var sections []SyllabusScopeSection
+	for _, sc := range orderedScopes {
+		gfs := guidesByScope[sc]
+		sort.Slice(gfs, func(i, j int) bool {
+			return gfs[i].guide.ID < gfs[j].guide.ID
+		})
+
+		var guides []SyllabusGuideRef
+		for _, gf := range gfs {
+			var prereqs []GuideRef
+			for _, p := range gf.guide.Metadata.Prerequisites {
+				prereqGF := filesByID[p]
+				if prereqGF != nil {
+					prereqs = append(prereqs, GuideRef{
+						ID:    p,
+						Title: prereqGF.guide.ID,
+						URL:   relURL("index.html", prereqGF.outRelPath),
+						Scope: prereqGF.guide.Metadata.Scope,
+					})
+				} else {
+					prereqs = append(prereqs, GuideRef{
+						ID:    p,
+						Title: p,
+						URL:   "",
+					})
+				}
+			}
+
+			tags := append([]string(nil), gf.guide.Metadata.Tags...)
+
+			guides = append(guides, SyllabusGuideRef{
+				Title:         gf.guide.ID,
+				URL:           relURL("index.html", gf.outRelPath),
+				Prerequisites: prereqs,
+				Tags:          tags,
+			})
+		}
+
+		scopeName := sc
+		if scopeName == "" {
+			scopeName = "other"
+		}
+
+		sections = append(sections, SyllabusScopeSection{
+			Scope:  scopeName,
+			Guides: guides,
+		})
+	}
+
+	return sections
 }
 
 func buildSidebar(fromOutRelPath string, currentID string, config graph.Manifest, guideFiles []*guideFile, filesByID map[string]*guideFile) SidebarData {

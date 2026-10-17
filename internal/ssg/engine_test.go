@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Carter907/qst/internal/graph"
 )
 
 func TestBuildSite(t *testing.T) {
@@ -173,14 +175,23 @@ Body text for Guide B.
 	if !strings.Contains(guideAHtml, "href=\"sub/GuideB.html\"") {
 		t.Errorf("GuideA.html should link to sub/GuideB.html")
 	}
-	if !strings.Contains(guideAHtml, "Sub-Guides") {
-		t.Errorf("GuideA.html should show Sub-Guides for GuideB")
+	if !strings.Contains(guideAHtml, "<figure class=\"appendix-figure\">") {
+		t.Errorf("GuideA.html should contain appendix-figure container")
+	}
+	if !strings.Contains(guideAHtml, "class=\"language-mermaid\"") {
+		t.Errorf("GuideA.html should contain localized mermaid diagram")
+	}
+	if !strings.Contains(guideAHtml, "Explanation: GuideA") {
+		t.Errorf("GuideA.html should contain Explanation: GuideA node label")
+	}
+	if !strings.Contains(guideAHtml, "guidea -.->") {
+		t.Errorf("GuideA.html should show subguide edge for GuideB")
 	}
 	if !strings.Contains(guideAHtml, "strict") {
 		t.Errorf("GuideA.html should display adherence 'strict'")
 	}
-	if !strings.Contains(guideAHtml, "lines 10-20") {
-		t.Errorf("GuideA.html should display segment 'lines 10-20'")
+	if !strings.Contains(guideAHtml, "10-20") {
+		t.Errorf("GuideA.html should display segment '10-20'")
 	}
 
 	// Issue 3: Root paths
@@ -244,8 +255,17 @@ Body text for Guide B.
 	if !strings.Contains(guideBHtml, "href=\"../GuideA.html\"") {
 		t.Errorf("sub/GuideB.html should link back to ../GuideA.html")
 	}
-	if !strings.Contains(guideBHtml, "Prerequisites") {
-		t.Errorf("sub/GuideB.html should show Prerequisites section for guide GuideA")
+	if !strings.Contains(guideBHtml, "<figure class=\"appendix-figure\">") {
+		t.Errorf("sub/GuideB.html should contain appendix-figure container")
+	}
+	if !strings.Contains(guideBHtml, "class=\"language-mermaid\"") {
+		t.Errorf("sub/GuideB.html should contain localized mermaid diagram")
+	}
+	if !strings.Contains(guideBHtml, "Definition: GuideB") {
+		t.Errorf("sub/GuideB.html should contain Definition: GuideB node label")
+	}
+	if !strings.Contains(guideBHtml, "guidea --> guideb") {
+		t.Errorf("sub/GuideB.html should show prerequisite edge from GuideA")
 	}
 
 	// Issue 3: Relative asset path in nested directory
@@ -273,54 +293,162 @@ Body text for Guide B.
 		t.Errorf("sub/GuideB.html should not contain in-body tour banners or steppers")
 	}
 
-	// 3. Verify index.html contains Knowledge Graph Mermaid diagram
+	// 3. Verify index.html contains Academic Syllabus Table (and no Mermaid diagram)
 	idxHtmlBytes, err := os.ReadFile(filepath.Join(outDir, "index.html"))
 	if err != nil {
 		t.Fatalf("Failed to read index.html: %v", err)
 	}
 	idxHtml := string(idxHtmlBytes)
 
-	if !strings.Contains(idxHtml, "Knowledge Graph Overview") {
-		t.Errorf("index.html missing Knowledge Graph Overview heading")
+	if !strings.Contains(idxHtml, "Curriculum & Syllabus") {
+		t.Errorf("index.html missing Curriculum & Syllabus heading")
 	}
-	if !strings.Contains(idxHtml, `class="language-mermaid"`) {
-		t.Errorf("index.html missing mermaid code block")
+	if !strings.Contains(idxHtml, "syllabus-table") {
+		t.Errorf("index.html missing syllabus-table class")
 	}
-	if !strings.Contains(idxHtml, `subgraph scope_explanation ["Scope: explanation"]`) {
-		t.Errorf("index.html mermaid diagram missing subgraph for explanation")
+	if !strings.Contains(idxHtml, "explanation") {
+		t.Errorf("index.html missing explanation scope")
 	}
-	if !strings.Contains(idxHtml, `subgraph scope_definition ["Scope: definition"]`) {
-		t.Errorf("index.html mermaid diagram missing subgraph for definition")
+	if !strings.Contains(idxHtml, "definition") {
+		t.Errorf("index.html missing definition scope")
 	}
-	if !strings.Contains(idxHtml, "direction LR") {
-		t.Errorf("index.html mermaid diagram missing direction LR")
+	if !strings.Contains(idxHtml, "href=\"GuideA.html\"") {
+		t.Errorf("index.html missing link to GuideA.html")
 	}
-	if !strings.Contains(idxHtml, "guidea --> guideb") {
-		t.Errorf("index.html mermaid diagram missing prerequisite edge 'guidea --> guideb'")
+	if !strings.Contains(idxHtml, "href=\"sub/GuideB.html\"") {
+		t.Errorf("index.html missing link to sub/GuideB.html")
 	}
-	if !strings.Contains(idxHtml, "guidea -.-> guideb") {
-		t.Errorf("index.html mermaid diagram missing subguide edge 'guidea -.-> guideb'")
+	// Prerequisite plain-text link for GuideB pointing to GuideA
+	if !strings.Contains(idxHtml, "syllabus-prereq-link") {
+		t.Errorf("index.html missing prerequisite link in syllabus")
 	}
-	if !strings.Contains(idxHtml, `click guidea href "GuideA.html"`) {
-		t.Errorf("index.html mermaid diagram missing click href for GuideA")
+	if strings.Contains(idxHtml, "syllabus-badge") {
+		t.Errorf("index.html should not contain badge containers")
 	}
-	if !strings.Contains(idxHtml, `click guideb href "sub/GuideB.html"`) {
-		t.Errorf("index.html mermaid diagram missing click href for sub/GuideB")
+	// GuideA has zero prerequisites, should render en-dash
+	if !strings.Contains(idxHtml, "syllabus-empty") {
+		t.Errorf("index.html missing empty prerequisite placeholder (–)")
+	}
+	// Verify global Mermaid diagram and pan/zoom are NOT in index.html
+	if strings.Contains(idxHtml, "Knowledge Graph Overview") {
+		t.Errorf("index.html should not contain Knowledge Graph Overview heading")
+	}
+	if strings.Contains(idxHtml, "setupPanZoom") {
+		t.Errorf("index.html should not contain setupPanZoom script")
 	}
 
-	// 4. Verify Pan & Zoom script in index.html and styles in style.css
-	if !strings.Contains(idxHtml, "setupPanZoom") {
-		t.Errorf("index.html missing setupPanZoom client script")
-	}
+	// 4. Verify Syllabus styles in style.css
 	cssBytes, err := os.ReadFile(filepath.Join(outDir, "assets", "style.css"))
 	if err != nil {
 		t.Fatalf("Failed to read style.css: %v", err)
 	}
 	cssStr := string(cssBytes)
-	if !strings.Contains(cssStr, ".mermaid-viewport") {
-		t.Errorf("style.css missing .mermaid-viewport styles")
+	if !strings.Contains(cssStr, ".syllabus-table") {
+		t.Errorf("style.css missing .syllabus-table styles")
 	}
-	if !strings.Contains(cssStr, ".mermaid-toolbar") {
-		t.Errorf("style.css missing .mermaid-toolbar styles")
+	if !strings.Contains(cssStr, ".syllabus-prereq-link") {
+		t.Errorf("style.css missing .syllabus-prereq-link styles")
+	}
+	if !strings.Contains(cssStr, ".syllabus-tag") {
+		t.Errorf("style.css missing .syllabus-tag styles")
+	}
+	if strings.Contains(cssStr, ".syllabus-badge") {
+		t.Errorf("style.css should not contain .syllabus-badge styles")
 	}
 }
+
+func TestBuildSyllabusScopes(t *testing.T) {
+	manifest := graph.Manifest{
+		Scopes: []string{"definition", "explanation", "lesson"},
+	}
+
+	gDef := &guideFile{
+		guide: graph.Guide{
+			ID: "Def 1",
+			Metadata: graph.GuideMetadata{
+				Scope: "definition",
+			},
+		},
+		outRelPath: "Def 1.html",
+	}
+
+	gExp := &guideFile{
+		guide: graph.Guide{
+			ID: "Exp 1",
+			Metadata: graph.GuideMetadata{
+				Scope:         "explanation",
+				Prerequisites: []string{"Def 1"},
+				Tags:          []string{"math"},
+			},
+		},
+		outRelPath: "Exp 1.html",
+	}
+
+	gLes := &guideFile{
+		guide: graph.Guide{
+			ID: "Lesson 1",
+			Metadata: graph.GuideMetadata{
+				Scope:         "lesson",
+				Prerequisites: []string{"Exp 1"},
+				Tags:          []string{"intro", "core"},
+			},
+		},
+		outRelPath: "sub/Lesson 1.html",
+	}
+
+	gOther := &guideFile{
+		guide: graph.Guide{
+			ID: "Unscoped Guide",
+			Metadata: graph.GuideMetadata{
+				Scope: "",
+			},
+		},
+		outRelPath: "Unscoped Guide.html",
+	}
+
+	guideFiles := []*guideFile{gDef, gExp, gLes, gOther}
+	filesByID := map[string]*guideFile{
+		"Def 1":          gDef,
+		"Exp 1":          gExp,
+		"Lesson 1":       gLes,
+		"Unscoped Guide": gOther,
+	}
+
+	sections := buildSyllabusScopes(manifest, guideFiles, filesByID)
+
+	// Top-down scope order: lesson -> explanation -> definition -> other
+	if len(sections) != 4 {
+		t.Fatalf("expected 4 syllabus sections, got %d", len(sections))
+	}
+	if sections[0].Scope != "lesson" {
+		t.Errorf("expected first section to be 'lesson', got %q", sections[0].Scope)
+	}
+	if sections[1].Scope != "explanation" {
+		t.Errorf("expected second section to be 'explanation', got %q", sections[1].Scope)
+	}
+	if sections[2].Scope != "definition" {
+		t.Errorf("expected third section to be 'definition', got %q", sections[2].Scope)
+	}
+	if sections[3].Scope != "other" {
+		t.Errorf("expected fourth section to be 'other', got %q", sections[3].Scope)
+	}
+
+	// Verify Lesson 1 guide details
+	lesGuide := sections[0].Guides[0]
+	if lesGuide.Title != "Lesson 1" || lesGuide.URL != "sub/Lesson 1.html" {
+		t.Errorf("unexpected Lesson 1 ref: %+v", lesGuide)
+	}
+	if len(lesGuide.Prerequisites) != 1 || lesGuide.Prerequisites[0].Title != "Exp 1" || lesGuide.Prerequisites[0].URL != "Exp 1.html" {
+		t.Errorf("unexpected Lesson 1 prerequisites: %+v", lesGuide.Prerequisites)
+	}
+	if len(lesGuide.Tags) != 2 || lesGuide.Tags[0] != "intro" || lesGuide.Tags[1] != "core" {
+		t.Errorf("unexpected Lesson 1 tags: %+v", lesGuide.Tags)
+	}
+
+	// Verify Def 1 guide details (zero prerequisites)
+	defGuide := sections[2].Guides[0]
+	if defGuide.Title != "Def 1" || len(defGuide.Prerequisites) != 0 {
+		t.Errorf("unexpected Def 1 ref: %+v", defGuide)
+	}
+}
+

@@ -471,113 +471,161 @@ tr:nth-child(even) td {
   padding-bottom: 8px;
 }
 
-.mermaid-container {
-  position: relative;
-  width: 100%;
-  height: 520px;
-  min-height: 420px;
-  background: #fbfbfb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  margin-top: 12px;
-  margin-bottom: 24px;
-  overflow: hidden;
-  box-sizing: border-box;
-  cursor: grab;
-  user-select: none;
+/* Homepage & Syllabus Styles */
+.home-header {
+  margin-bottom: 28px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 16px;
 }
 
-.mermaid-container.is-grabbing {
-  cursor: grabbing;
+.home-description {
+  font-size: 1.05em;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-top: 8px;
 }
 
-.mermaid-container.is-fullscreen {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-  border: none;
-  z-index: 9999;
-  background: #ffffff;
-  margin: 0;
+.syllabus-section {
+  margin-top: 24px;
 }
 
-.mermaid-viewport {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: 0 0;
-  will-change: transform;
-}
-
-.mermaid-container .mermaid {
-  margin: 0;
-  text-align: left;
-  background: transparent;
-}
-
-.mermaid-container .mermaid svg {
-  max-width: none !important;
-  display: block;
-}
-
-.mermaid-toolbar {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 20;
-  display: flex;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(4px);
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 3px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.mermaid-toolbar button {
-  background: transparent;
-  border: none;
-  color: #374151;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 0;
-  transition:
-    background-color 0.15s,
-    color 0.15s;
-}
-
-.mermaid-toolbar button:hover {
-  background: #f3f4f6;
+.syllabus-main-title {
+  font-size: 1.35em;
+  font-weight: 600;
+  margin-bottom: 18px;
   color: #111827;
 }
 
-.mermaid-toolbar button:active {
-  background: #e5e7eb;
+.syllabus-scope-group {
+  margin-bottom: 32px;
 }
 
-.mermaid-toolbar button svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
+.syllabus-scope-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #1f2937;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.mermaid-hint {
-  position: absolute;
-  bottom: 10px;
-  left: 14px;
-  font-size: 0.78em;
+.syllabus-count {
+  font-size: 0.85em;
+  font-weight: normal;
+  color: #6b7280;
+}
+
+.syllabus-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 16px 0;
+  font-size: 0.92em;
+}
+
+.syllabus-table th {
+  border-top: 2px solid #111827;
+  border-bottom: 1px solid #111827;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.88em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.syllabus-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.syllabus-table tr:last-child td {
+  border-bottom: 2px solid #111827;
+}
+
+.syllabus-col-guide { width: 38%; }
+.syllabus-col-prereqs { width: 42%; }
+.syllabus-col-tags { width: 20%; }
+
+.syllabus-guide-link {
+  font-weight: 600;
+  color: #111827;
+  text-decoration: none;
+}
+
+.syllabus-guide-link:hover {
+  text-decoration: underline;
+}
+
+.syllabus-prereq-list {
+  color: #111827;
+  line-height: 1.4;
+}
+
+.syllabus-prereq-link {
+  color: #111827;
+  text-decoration: none;
+}
+
+.syllabus-prereq-link:hover {
+  text-decoration: underline;
+}
+
+.syllabus-prereq-text {
+  color: #111827;
+}
+
+.syllabus-tags-list {
+  line-height: 1.4;
+}
+
+.syllabus-tag {
+  color: #4b5563;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88em;
+}
+
+.syllabus-empty {
   color: #9ca3af;
-  pointer-events: none;
-  z-index: 10;
 }
+
+.appendix-figure {
+  margin: 14px 0 24px 0;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.appendix-figure .mermaid {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.appendix-figure .mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.appendix-caption {
+  font-size: 0.82em;
+  color: #6b7280;
+  margin-top: 10px;
+  margin-bottom: 0;
+  text-align: center;
+  font-style: italic;
+}
+
 
 /* Mermaid Diagram Container for inline guide diagrams */
 .mermaid {

@@ -1,15 +1,57 @@
 {{ define "content" }}
-<h1>Knowledge Graph: {{ .Title }}</h1>
-<p>Welcome to the generated static site for this knowledge graph.</p>
+<header class="home-header">
+  <h1>{{ .Title }}</h1>
+  {{ if .Description }}
+  <p class="home-description">{{ .Description }}</p>
+  {{ else }}
+  <p class="home-description">Welcome to the generated static site for this knowledge graph.</p>
+  {{ end }}
+</header>
 
-<p>{{ .Description }}</p>
-
-{{ if .MermaidGraph }}
-<section class="knowledge-graph-section">
-  <h2>Knowledge Graph Overview</h2>
-  <div class="mermaid-container">
-    <pre><code class="language-mermaid">{{ .MermaidGraph }}</code></pre>
+{{ if .Scopes }}
+<section class="syllabus-section">
+  <h2 class="syllabus-main-title">Curriculum & Syllabus</h2>
+  {{ range .Scopes }}
+  <div class="syllabus-scope-group">
+    <h3 class="syllabus-scope-title">{{ .Scope }} <span class="syllabus-count">({{ len .Guides }})</span></h3>
+    <table class="syllabus-table">
+      <thead>
+        <tr>
+          <th scope="col" class="syllabus-col-guide">Guide</th>
+          <th scope="col" class="syllabus-col-prereqs">Prerequisites</th>
+          <th scope="col" class="syllabus-col-tags">Tags</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Guides }}
+        <tr>
+          <td class="syllabus-guide-cell">
+            <a href="{{ .URL }}" class="syllabus-guide-link">{{ .Title }}</a>
+          </td>
+          <td class="syllabus-prereqs-cell">
+            {{ if .Prerequisites }}
+            <span class="syllabus-prereq-list">
+              {{ range $i, $p := .Prerequisites }}{{ if $i }}, {{ end }}{{ if $p.URL }}<a href="{{ $p.URL }}" class="syllabus-prereq-link">{{ $p.Title }}</a>{{ else }}<span class="syllabus-prereq-text">{{ $p.Title }}</span>{{ end }}{{ end }}
+            </span>
+            {{ else }}
+            <span class="syllabus-empty">–</span>
+            {{ end }}
+          </td>
+          <td class="syllabus-tags-cell">
+            {{ if .Tags }}
+            <span class="syllabus-tags-list">
+              {{ range $i, $tag := .Tags }}{{ if $i }}, {{ end }}<span class="syllabus-tag">{{ $tag }}</span>{{ end }}
+            </span>
+            {{ else }}
+            <span class="syllabus-empty">–</span>
+            {{ end }}
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
   </div>
+  {{ end }}
 </section>
 {{ end }}
 {{ end }}
