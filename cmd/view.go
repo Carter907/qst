@@ -6,15 +6,23 @@ import (
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
+	"github.com/Carter907/qst/internal/ssg"
 	"github.com/spf13/cobra"
 )
+
+var viewGuide string
 
 var viewCmd = &cobra.Command{
 	Use:   "view [directory]",
 	Short: "Export the knowledge graph to a Mermaid.js diagram",
-	Long:  `The view command reads the knowledge directory and exports its structure as a Mermaid.js graph. Prerequisite links are shown as solid arrows, and sub-guide relationships are shown as dotted arrows.`,
-	Example: `# Output mermaid to stdout
+	Long: `The view command reads the knowledge directory and exports its structure as a Mermaid.js graph.
+Prerequisite links are shown as solid arrows, and sub-guide relationships are shown as dotted arrows.
+Use --guide (-g) to export a localized forward-only subgraph centered on a specific guide.`,
+	Example: `# Output global mermaid to stdout
 qst view my_knowledge_graph_dir/
+
+# Output localized subgraph for a specific guide
+qst view . --guide "Printf Function"
 
 # Save to a markdown file
 qst view . > graph.md`,
@@ -29,6 +37,28 @@ qst view . > graph.md`,
 		if err != nil {
 			cmd.PrintErrf("Error parsing graph: %v\n", err)
 			exitFunc(1)
+			return
+		}
+
+		if viewGuide != "" {
+			if _, exists := guides[viewGuide]; !exists {
+				cmd.PrintErrf("Error: guide '%s' not found in graph\n", viewGuide)
+				exitFunc(1)
+				return
+			}
+			config, err := graph.ParseConfig(dir)
+			if err != nil {
+				cmd.PrintErrf("Error parsing manifest: %v\n", err)
+				exitFunc(1)
+				return
+			}
+			diag, err := ssg.GenerateGuideMermaidText(viewGuide, guides, config)
+			if err != nil {
+				cmd.PrintErrf("Error generating localized diagram: %v\n", err)
+				exitFunc(1)
+				return
+			}
+			cmd.Println(diag)
 			return
 		}
 
@@ -78,5 +108,6 @@ func generateMermaid(guides map[string]graph.Guide) string {
 }
 
 func init() {
+	viewCmd.Flags().StringVarP(&viewGuide, "guide", "g", "", "Export localized subgraph centered on a specific guide")
 	rootCmd.AddCommand(viewCmd)
 }
