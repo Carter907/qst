@@ -23,14 +23,16 @@ Use --coverage (-c) to expand the line-by-line body annotation.`,
 	Example: `# Inspect a guide in the current directory
 qst inspect "Variables and Assignment"
 
-# Inspect with full line-by-line coverage
-qst inspect "Variables and Assignment" -c
+# Inspect specifying file name or path
+qst inspect "Variables and Assignment.md" -c
+qst inspect examples/C_programming/Scanf\ Function.md -c
 
 # Inspect a guide in a specific directory
 qst inspect "Scanf Function" -d examples/C_programming -c`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		runInspect(cmd, args[0], inspectDir, inspectCoverage)
+		guideName := resolveGuideAndDir(cmd, args[0], &inspectDir)
+		runInspect(cmd, guideName, inspectDir, inspectCoverage)
 	},
 }
 

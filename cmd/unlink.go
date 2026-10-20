@@ -28,6 +28,10 @@ var unlinkCmd = &cobra.Command{
 	Example: `# Unlink a subguide
 qst unlink "The Compilation Process" --subguide "Compiler"
 
+# Unlink specifying file names or paths
+qst unlink "The Compilation Process.md" --subguide "Compiler.md"
+qst unlink examples/C_programming/Scanf\ Function.md --prereq examples/C_programming/Printf\ Function.md
+
 # Unlink a prerequisite
 qst unlink "Scanf Function" --prereq "Printf Function"
 
@@ -35,7 +39,9 @@ qst unlink "Scanf Function" --prereq "Printf Function"
 qst unlink "Variables and Assignment" -i`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		guideName := args[0]
+		guideName := resolveGuideAndDir(cmd, args[0], &unlinkDir)
+		unlinkPrereq = cleanGuideName(unlinkPrereq)
+		unlinkSubguide = cleanGuideName(unlinkSubguide)
 		filename := filepath.Join(unlinkDir, guideName+".md")
 
 		if _, err := os.Stat(filename); os.IsNotExist(err) {

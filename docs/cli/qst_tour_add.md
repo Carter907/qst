@@ -11,6 +11,10 @@ qst tour add [tour-name] [guide...] [flags]
 ```
 # Add guides to a tour
 qst tour add "Core Fundamentals" "Concept A" "Concept B" -d my_graph/
+
+# Add guides specifying file names or paths
+qst tour add "Core Fundamentals" "Concept A.md" "Concept B.md" -d my_graph/
+qst tour add "Core Fundamentals" my_graph/Concept\ A.md
 ```
 
 ### Options

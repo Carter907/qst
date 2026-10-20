@@ -11,6 +11,10 @@ qst tag add [guide] [tag...] [flags]
 ```
 # Add tags to a guide
 qst tag add "Printf Function" "io" "c-standard" -d examples/C_programming
+
+# Add tags specifying file name or path
+qst tag add "Printf Function.md" "io" -d examples/C_programming
+qst tag add examples/C_programming/Printf\ Function.md "io"
 ```
 
 ### Options

@@ -11,6 +11,10 @@ qst tour remove [tour-name] [guide] [flags]
 ```
 # Remove a guide from a tour
 qst tour remove "Core Fundamentals" "Concept A" -d my_graph/
+
+# Remove a guide specifying file name or path
+qst tour remove "Core Fundamentals" "Concept A.md" -d my_graph/
+qst tour remove "Core Fundamentals" my_graph/Concept\ A.md
 ```
 
 ### Options

@@ -21,6 +21,10 @@ qst link [guide] [flags]
 # Link a subguide with adherence and line segment
 qst link "The Compilation Process" --subguide "Compiler" --adherence introductory --segment 6-6
 
+# Link specifying file names or paths
+qst link "The Compilation Process.md" --subguide "Compiler.md" --adherence introductory
+qst link examples/C_programming/Scanf\ Function.md --prereq examples/C_programming/Printf\ Function.md
+
 # Link multiple subguides at once
 qst link "Chapter 13 Strings" --subguide "String Fundamentals, String IO" --adherence introductory
 

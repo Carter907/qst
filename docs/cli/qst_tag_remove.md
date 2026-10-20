@@ -11,6 +11,10 @@ qst tag remove [guide] [tag...] [flags]
 ```
 # Remove a tag from a guide
 qst tag remove "Printf Function" "io" -d examples/C_programming
+
+# Remove a tag specifying file name or path
+qst tag remove "Printf Function.md" "io" -d examples/C_programming
+qst tag remove examples/C_programming/Printf\ Function.md "io"
 ```
 
 ### Options

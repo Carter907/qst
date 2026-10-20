@@ -32,6 +32,10 @@ var linkCmd = &cobra.Command{
 	Example: `# Link a subguide with adherence and line segment
 qst link "The Compilation Process" --subguide "Compiler" --adherence introductory --segment 6-6
 
+# Link specifying file names or paths
+qst link "The Compilation Process.md" --subguide "Compiler.md" --adherence introductory
+qst link examples/C_programming/Scanf\ Function.md --prereq examples/C_programming/Printf\ Function.md
+
 # Link multiple subguides at once
 qst link "Chapter 13 Strings" --subguide "String Fundamentals, String IO" --adherence introductory
 
@@ -45,7 +49,7 @@ qst link "Variables and Assignment" --preview
 qst link "Variables and Assignment" -i`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		guideName := args[0]
+		guideName := resolveGuideAndDir(cmd, args[0], &linkDir)
 		filename := filepath.Join(linkDir, guideName+".md")
 
 		guides, err := graph.ParseGraph(linkDir)
@@ -81,7 +85,7 @@ qst link "Variables and Assignment" -i`,
 				item = strings.TrimSuffix(item, "]")
 				for _, part := range strings.Split(item, ",") {
 					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
-						res = append(res, trimmed)
+						res = append(res, cleanGuideName(trimmed))
 					}
 				}
 			}

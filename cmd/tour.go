@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
@@ -76,11 +78,27 @@ var tourAddCmd = &cobra.Command{
 	Use:   "add [tour-name] [guide...]",
 	Short: "Add one or more guides to a tour in manifest.yaml",
 	Example: `# Add guides to a tour
-qst tour add "Core Fundamentals" "Concept A" "Concept B" -d my_graph/`,
+qst tour add "Core Fundamentals" "Concept A" "Concept B" -d my_graph/
+
+# Add guides specifying file names or paths
+qst tour add "Core Fundamentals" "Concept A.md" "Concept B.md" -d my_graph/
+qst tour add "Core Fundamentals" my_graph/Concept\ A.md`,
 	Args: cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		tourName := args[0]
-		guideNames := args[1:]
+		rawGuides := args[1:]
+
+		dirFlag := cmd.Flags().Lookup("dir")
+		if dirFlag == nil || !dirFlag.Changed {
+			for _, g := range rawGuides {
+				dir := filepath.Dir(g)
+				if dir != "." && dir != "" {
+					tourDir = dir
+					break
+				}
+			}
+		}
+		guideNames := cleanGuideList(rawGuides)
 
 		guides, err := graph.ParseGraph(tourDir)
 		if err != nil {
@@ -116,11 +134,15 @@ var tourRemoveCmd = &cobra.Command{
 	Use:   "remove [tour-name] [guide]",
 	Short: "Remove a guide from a tour in manifest.yaml",
 	Example: `# Remove a guide from a tour
-qst tour remove "Core Fundamentals" "Concept A" -d my_graph/`,
+qst tour remove "Core Fundamentals" "Concept A" -d my_graph/
+
+# Remove a guide specifying file name or path
+qst tour remove "Core Fundamentals" "Concept A.md" -d my_graph/
+qst tour remove "Core Fundamentals" my_graph/Concept\ A.md`,
 	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		tourName := args[0]
-		guideName := args[1]
+		guideName := resolveGuideAndDir(cmd, args[1], &tourDir)
 
 		err := graph.RemoveGuideFromTour(tourDir, tourName, guideName)
 		if err != nil {

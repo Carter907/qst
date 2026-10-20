@@ -18,6 +18,10 @@ qst coverage [guide] [flags]
 # Inspect body line coverage
 qst coverage "Variables and Assignment"
 
+# Inspect specifying file name or path
+qst coverage "Variables and Assignment.md"
+qst coverage examples/C_programming/The\ Compilation\ Process.md
+
 # Inspect in specific directory
 qst coverage "The Compilation Process" -d examples/C_programming
 ```

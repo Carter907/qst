@@ -13,10 +13,16 @@ var renameDir string
 var renameCmd = &cobra.Command{
 	Use:   "rename [old_name] [new_name]",
 	Short: "Rename a guide and update all references to it",
-	Args:  cobra.ExactArgs(2),
+	Example: `# Rename a guide in the graph
+qst rename "Old Name" "New Name" -d my_graph/
+
+# Rename specifying file names or paths
+qst rename "Old Name.md" "New Name.md"
+qst rename my_graph/Old\ Name.md "New Name"`,
+	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		oldName := args[0]
-		newName := args[1]
+		oldName := resolveGuideAndDir(cmd, args[0], &renameDir)
+		newName := cleanGuideName(args[1])
 
 		guides, err := graph.ParseGraph(renameDir)
 		if err != nil {

@@ -19,6 +19,10 @@ qst unlink [guide] [flags]
 # Unlink a subguide
 qst unlink "The Compilation Process" --subguide "Compiler"
 
+# Unlink specifying file names or paths
+qst unlink "The Compilation Process.md" --subguide "Compiler.md"
+qst unlink examples/C_programming/Scanf\ Function.md --prereq examples/C_programming/Printf\ Function.md
+
 # Unlink a prerequisite
 qst unlink "Scanf Function" --prereq "Printf Function"
 

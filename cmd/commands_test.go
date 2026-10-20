@@ -908,3 +908,133 @@ func TestInspectCommand_Failures(t *testing.T) {
 		t.Errorf("expected 'Failed to load manifest.yaml:' in inspect output, got: %s", out)
 	}
 }
+
+func TestGuideFileAndPathSpecification(t *testing.T) {
+	// Unit tests for cleanGuideName
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Guide.md", "Guide"},
+		{"Guide.MD", "Guide"},
+		{"Guide", "Guide"},
+		{"path/to/Guide.md", "Guide"},
+		{"path/to/Guide", "Guide"},
+		{"./Guide.md", "Guide"},
+		{"", ""},
+		{"   ", ""},
+	}
+	for _, tc := range tests {
+		if actual := cleanGuideName(tc.input); actual != tc.expected {
+			t.Errorf("cleanGuideName(%q) = %q; expected %q", tc.input, actual, tc.expected)
+		}
+	}
+
+	dir := setupTestGraph(t)
+
+	// 1. inspect with .md and with full path auto-inferring --dir
+	out, exitCode, err := executeCommandWithExit("inspect", "Def 1.md", "--dir", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("inspect Def 1.md failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Guide: Def 1") {
+		t.Errorf("expected inspect output to contain 'Guide: Def 1', got: %s", out)
+	}
+
+	guidePath := filepath.Join(dir, "Def 1.md")
+	out, exitCode, err = executeCommandWithExit("inspect", guidePath)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("inspect with full path failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Guide: Def 1") {
+		t.Errorf("expected inspect output to contain 'Guide: Def 1', got: %s", out)
+	}
+
+	// 2. coverage with full path auto-inferring --dir
+	out, exitCode, err = executeCommandWithExit("coverage", guidePath)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("coverage with full path failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Guide: Def 1") {
+		t.Errorf("expected coverage output to contain 'Guide: Def 1', got: %s", out)
+	}
+
+	// 3. add guide with .md and path, auto-inferring --dir
+	newGuidePath := filepath.Join(dir, "Def 3.md")
+	out, exitCode, err = executeCommandWithExit("add", newGuidePath, "--scope", "definition", "--prerequisites", "Def 1.md")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("add with path and .md prereq failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "Def 3.md")); os.IsNotExist(statErr) {
+		t.Errorf("expected Def 3.md to be created in %s", dir)
+	}
+
+	// 4. link with path and .md flags
+	out, exitCode, err = executeCommandWithExit("link", filepath.Join(dir, "Def 1.md"), "--prereq", filepath.Join(dir, "Def 2.md"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("link with path and .md prereq failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Successfully linked prerequisite 'Def 2' to 'Def 1'") {
+		t.Errorf("unexpected link output: %s", out)
+	}
+
+	// 5. unlink with path and .md flags
+	out, exitCode, err = executeCommandWithExit("unlink", filepath.Join(dir, "Def 1.md"), "--prereq", "Def 2.md")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("unlink with path and .md prereq failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Successfully unlinked prerequisite 'Def 2' from 'Def 1'") {
+		t.Errorf("unexpected unlink output: %s", out)
+	}
+
+	// 6. tag add & remove with path and .md
+	out, exitCode, err = executeCommandWithExit("tag", "add", filepath.Join(dir, "Def 1.md"), "tagged")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("tag add failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	out, exitCode, err = executeCommandWithExit("tag", "remove", filepath.Join(dir, "Def 1.md"), "tagged")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("tag remove failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+
+	// 7. tour add & remove with path and .md
+	out, exitCode, err = executeCommandWithExit("tour", "create", "Basics", "--dir", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("tour create failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	out, exitCode, err = executeCommandWithExit("tour", "add", "Basics", filepath.Join(dir, "Def 1.md"), filepath.Join(dir, "Def 2.md"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("tour add failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	out, exitCode, err = executeCommandWithExit("tour", "remove", "Basics", filepath.Join(dir, "Def 1.md"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("tour remove failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+
+	// 8. view with -g and path
+	out, exitCode, err = executeCommandWithExit("view", "-g", filepath.Join(dir, "Def 1.md"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("view -g failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Def 1") {
+		t.Errorf("expected view output to contain 'Def 1', got: %s", out)
+	}
+
+	// 9. rename with old and new .md and path
+	out, exitCode, err = executeCommandWithExit("rename", filepath.Join(dir, "Def 2.md"), "Def 2 Renamed.md")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("rename failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "Def 2 Renamed.md")); os.IsNotExist(statErr) {
+		t.Errorf("expected Def 2 Renamed.md to exist after rename")
+	}
+
+	// 10. delete with path and .md
+	out, exitCode, err = executeCommandWithExit("delete", filepath.Join(dir, "Def 3.md"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("delete failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "Def 3.md")); !os.IsNotExist(statErr) {
+		t.Errorf("expected Def 3.md to be deleted")
+	}
+}

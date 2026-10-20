@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -24,6 +25,10 @@ qst view my_knowledge_graph_dir/
 # Output localized subgraph for a specific guide
 qst view . --guide "Printf Function"
 
+# Output localized subgraph specifying file name or path
+qst view . --guide "Printf Function.md"
+qst view -g examples/C_programming/Printf\ Function.md
+
 # Save to a markdown file
 qst view . > graph.md`,
 	Args: cobra.MaximumNArgs(1),
@@ -31,6 +36,14 @@ qst view . > graph.md`,
 		dir := "."
 		if len(args) > 0 {
 			dir = args[0]
+		} else if viewGuide != "" {
+			guideDir := filepath.Dir(viewGuide)
+			if guideDir != "." && guideDir != "" {
+				dir = guideDir
+			}
+		}
+		if viewGuide != "" {
+			viewGuide = cleanGuideName(viewGuide)
 		}
 
 		guides, err := graph.ParseGraph(dir)

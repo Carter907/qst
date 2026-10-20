@@ -17,6 +17,10 @@ qst delete [guide] [flags]
 # Delete a guide and clean up all references across the graph
 qst delete "Old Concept" -d my_graph/
 
+# Delete specifying file name or path
+qst delete "Old Concept.md" -d my_graph/
+qst delete my_graph/Old\ Concept.md
+
 # Preview which references would be pruned without deleting
 qst delete "Old Concept" -d my_graph/ --dry-run
 

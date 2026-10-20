@@ -33,14 +33,14 @@ var addCmd = &cobra.Command{
 	Example: `# Add a new definition
 qst add Exponent --scope definition
 
-# Add a description with subguides and adherence
-qst add "String Operations" --scope description --subguide "String Length, String Copy" --adherence introductory
+# Add a description specifying file name or path
+qst add "String Operations.md" --scope description --subguide "String Length.md, String Copy.md" --adherence introductory
 
 # Add to a specific directory with initial body content
 qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory Layout\n\nExplanation text."`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		name := args[0]
+		name := resolveGuideAndDir(cmd, args[0], &addDir)
 		filename := filepath.Join(addDir, name+".md")
 
 		if _, err := os.Stat(filename); !os.IsNotExist(err) {
@@ -61,7 +61,21 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			addTags = nil
 		}()
 
-		normalizeSlice := func(items []string) []string {
+		normalizeGuideSlice := func(items []string) []string {
+			var res []string
+			for _, item := range items {
+				item = strings.TrimPrefix(item, "[")
+				item = strings.TrimSuffix(item, "]")
+				for _, part := range strings.Split(item, ",") {
+					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
+						res = append(res, cleanGuideName(trimmed))
+					}
+				}
+			}
+			return res
+		}
+
+		normalizeTagSlice := func(items []string) []string {
 			var res []string
 			for _, item := range items {
 				item = strings.TrimPrefix(item, "[")
@@ -119,10 +133,10 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			}
 
 			if !cmd.Flags().Changed("prerequisites") {
-				addPrerequisites = normalizeSlice([]string{prereqString})
+				addPrerequisites = normalizeGuideSlice([]string{prereqString})
 			}
 			if !cmd.Flags().Changed("tags") {
-				addTags = normalizeSlice([]string{tagsString})
+				addTags = normalizeTagSlice([]string{tagsString})
 			}
 		} else {
 			if !cmd.Flags().Changed("scope") || addScope == "" {
@@ -139,9 +153,9 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			return
 		}
 
-		addPrerequisites = normalizeSlice(addPrerequisites)
-		addSubguides = normalizeSlice(addSubguides)
-		addTags = normalizeSlice(addTags)
+		addPrerequisites = normalizeGuideSlice(addPrerequisites)
+		addSubguides = normalizeGuideSlice(addSubguides)
+		addTags = normalizeTagSlice(addTags)
 
 		// Parse graph to validate prerequisites and subguides if any are specified
 		var guides map[string]graph.Guide

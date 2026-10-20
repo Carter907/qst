@@ -21,6 +21,10 @@ all incoming references to it from other guides' prerequisites, subguides, and m
 	Example: `# Delete a guide and clean up all references across the graph
 qst delete "Old Concept" -d my_graph/
 
+# Delete specifying file name or path
+qst delete "Old Concept.md" -d my_graph/
+qst delete my_graph/Old\ Concept.md
+
 # Preview which references would be pruned without deleting
 qst delete "Old Concept" -d my_graph/ --dry-run
 
@@ -28,7 +32,7 @@ qst delete "Old Concept" -d my_graph/ --dry-run
 qst rm "Old Concept"`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		guideName := args[0]
+		guideName := resolveGuideAndDir(cmd, args[0], &deleteDir)
 
 		guides, err := graph.ParseGraph(deleteDir)
 		if err != nil {

@@ -16,8 +16,8 @@ qst add [name] [flags]
 # Add a new definition
 qst add Exponent --scope definition
 
-# Add a description with subguides and adherence
-qst add "String Operations" --scope description --subguide "String Length, String Copy" --adherence introductory
+# Add a description specifying file name or path
+qst add "String Operations.md" --scope description --subguide "String Length.md, String Copy.md" --adherence introductory
 
 # Add to a specific directory with initial body content
 qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory Layout\n\nExplanation text."

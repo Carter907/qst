@@ -21,6 +21,10 @@ qst view my_knowledge_graph_dir/
 # Output localized subgraph for a specific guide
 qst view . --guide "Printf Function"
 
+# Output localized subgraph specifying file name or path
+qst view . --guide "Printf Function.md"
+qst view -g examples/C_programming/Printf\ Function.md
+
 # Save to a markdown file
 qst view . > graph.md
 ```
