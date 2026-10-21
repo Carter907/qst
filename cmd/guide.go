@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
 
@@ -47,4 +49,52 @@ func cleanGuideList(rawGuides []string) []string {
 		result[i] = cleanGuideName(g)
 	}
 	return result
+}
+
+// resolveGuide finds a guide by name or relative path in the specified graph directory,
+// searching recursively so nested subdirectories are supported transparently.
+func resolveGuide(dir string, rawGuide string) (graph.Guide, map[string]graph.Guide, error) {
+	cleanName := cleanGuideName(rawGuide)
+	if cleanName == "" {
+		return graph.Guide{}, nil, fmt.Errorf("guide name cannot be empty")
+	}
+
+	guides, err := graph.ParseGraph(dir)
+	if err != nil {
+		return graph.Guide{}, nil, fmt.Errorf("error parsing graph: %w", err)
+	}
+
+	targetGuide, exists := guides[cleanName]
+	if !exists {
+		return graph.Guide{}, guides, fmt.Errorf("guide '%s' not found in graph", cleanName)
+	}
+
+	return targetGuide, guides, nil
+}
+
+// parseCSVOrSlice normalizes an array of string arguments, splitting comma-separated tokens
+// and stripping any bracket delimiters and whitespace.
+func parseCSVOrSlice(items []string) []string {
+	var res []string
+	for _, item := range items {
+		item = strings.TrimPrefix(item, "[")
+		item = strings.TrimSuffix(item, "]")
+		for _, part := range strings.Split(item, ",") {
+			if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
+				res = append(res, trimmed)
+			}
+		}
+	}
+	return res
+}
+
+// parseGuideCSVOrSlice normalizes an array of guide names, splitting comma-separated tokens
+// and removing file extensions and path prefixes.
+func parseGuideCSVOrSlice(items []string) []string {
+	raw := parseCSVOrSlice(items)
+	res := make([]string, len(raw))
+	for i, g := range raw {
+		res[i] = cleanGuideName(g)
+	}
+	return res
 }

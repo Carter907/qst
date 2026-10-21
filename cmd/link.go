@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -50,7 +49,6 @@ qst link "Variables and Assignment" -i`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		guideName := resolveGuideAndDir(cmd, args[0], &linkDir)
-		filename := filepath.Join(linkDir, guideName+".md")
 
 		guides, err := graph.ParseGraph(linkDir)
 		if err != nil {
@@ -77,20 +75,6 @@ qst link "Variables and Assignment" -i`,
 			linkPrereqs = nil
 			linkSubguides = nil
 		}()
-
-		normalizeSlice := func(items []string) []string {
-			var res []string
-			for _, item := range items {
-				item = strings.TrimPrefix(item, "[")
-				item = strings.TrimSuffix(item, "]")
-				for _, part := range strings.Split(item, ",") {
-					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
-						res = append(res, cleanGuideName(trimmed))
-					}
-				}
-			}
-			return res
-		}
 
 		isPrereqSet := cmd.Flags().Changed("prereq")
 		isSubguideSet := cmd.Flags().Changed("subguide") || cmd.Flags().Changed("sub")
@@ -265,7 +249,7 @@ qst link "Variables and Assignment" -i`,
 
 		// Handle Prerequisites (batch support)
 		if isPrereqSet {
-			prereqs := normalizeSlice(linkPrereqs)
+			prereqs := parseGuideCSVOrSlice(linkPrereqs)
 			if len(prereqs) == 0 {
 				cmd.PrintErrln("Error: no prerequisite specified")
 				exitFunc(1)
@@ -278,7 +262,7 @@ qst link "Variables and Assignment" -i`,
 					return
 				}
 
-				if err := graph.AddPrerequisite(filename, prereq); err != nil {
+				if err := graph.AddPrerequisite(currentGuide.Path, prereq); err != nil {
 					cmd.PrintErrf("Failed to update guide: %v\n", err)
 					exitFunc(1)
 					return
@@ -296,7 +280,7 @@ qst link "Variables and Assignment" -i`,
 
 		// Handle Subguides (batch support)
 		if isSubguideSet {
-			subguides := normalizeSlice(linkSubguides)
+			subguides := parseGuideCSVOrSlice(linkSubguides)
 			if len(subguides) == 0 {
 				cmd.PrintErrln("Error: no subguide specified")
 				exitFunc(1)
@@ -319,7 +303,7 @@ qst link "Variables and Assignment" -i`,
 					Segment:   linkSegment,
 				}
 
-				if err := graph.UpsertSubGuide(filename, newSubguide); err != nil {
+				if err := graph.UpsertSubGuide(currentGuide.Path, newSubguide); err != nil {
 					cmd.PrintErrf("Failed to update guide: %v\n", err)
 					exitFunc(1)
 					return

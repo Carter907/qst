@@ -37,8 +37,7 @@ var statsCmd = &cobra.Command{
 		emptyGuides := 0
 		orphanedGuides := 0
 
-		inDegree := make(map[string]int)
-		outDegree := make(map[string]int)
+		idx := graph.BuildIndex(guides, config)
 		scopeCounts := make(map[string]int)
 
 		for id, guide := range guides {
@@ -46,26 +45,19 @@ var statsCmd = &cobra.Command{
 				emptyGuides++
 			}
 			scopeCounts[guide.Metadata.Scope]++
+			if idx.IsOrphan(id) {
+				orphanedGuides++
+			}
 
 			for _, p := range guide.Metadata.Prerequisites {
 				if _, exists := guides[p]; exists {
-					inDegree[id]++
-					outDegree[p]++
 					prereqEdges++
 				}
 			}
 			for _, s := range guide.Metadata.SubGuides {
 				if _, exists := guides[s.Guide]; exists {
-					inDegree[s.Guide]++
-					outDegree[id]++
 					subguideEdges++
 				}
-			}
-		}
-
-		for id := range guides {
-			if inDegree[id] == 0 && outDegree[id] == 0 {
-				orphanedGuides++
 			}
 		}
 
@@ -115,8 +107,8 @@ var statsCmd = &cobra.Command{
 		}
 
 		// 3. Graph Depth & Learning Paths
-		longestChain := findLongestPrereqChain(guides)
-		subDepth := findMaxSubguideDepth(guides)
+		longestChain := graph.LongestPrerequisiteChain(guides)
+		subDepth := graph.MaxSubguideDepth(guides)
 
 		cmd.Println("\nGraph Depth & Learning Paths:")
 		prereqDepth := len(longestChain)
@@ -182,109 +174,6 @@ var statsCmd = &cobra.Command{
 			cmd.Printf("  Overlapping Lines:     %d\n", totalOverlappingLines)
 		}
 	},
-}
-
-func findLongestPrereqChain(guides map[string]graph.Guide) []string {
-	memo := make(map[string][]string)
-	visiting := make(map[string]bool)
-
-	var getChain func(id string) []string
-	getChain = func(id string) []string {
-		if chain, ok := memo[id]; ok {
-			return chain
-		}
-		if visiting[id] {
-			return []string{id}
-		}
-		visiting[id] = true
-		defer func() { visiting[id] = false }()
-
-		guide, ok := guides[id]
-		if !ok {
-			return nil
-		}
-
-		var bestParentChain []string
-		for _, p := range guide.Metadata.Prerequisites {
-			if _, exists := guides[p]; !exists {
-				continue
-			}
-			pChain := getChain(p)
-			if len(pChain) > len(bestParentChain) {
-				bestParentChain = pChain
-			}
-		}
-
-		res := append(append([]string(nil), bestParentChain...), id)
-		memo[id] = res
-		return res
-	}
-
-	var longest []string
-	for id := range guides {
-		chain := getChain(id)
-		if len(chain) > len(longest) {
-			longest = chain
-		}
-	}
-	return longest
-}
-
-func findMaxSubguideDepth(guides map[string]graph.Guide) int {
-	hasSubguides := false
-	for _, g := range guides {
-		if len(g.Metadata.SubGuides) > 0 {
-			hasSubguides = true
-			break
-		}
-	}
-	if !hasSubguides {
-		return 0
-	}
-
-	memo := make(map[string]int)
-	visiting := make(map[string]bool)
-
-	var getDepth func(id string) int
-	getDepth = func(id string) int {
-		if d, ok := memo[id]; ok {
-			return d
-		}
-		if visiting[id] {
-			return 1
-		}
-		visiting[id] = true
-		defer func() { visiting[id] = false }()
-
-		guide, ok := guides[id]
-		if !ok {
-			return 0
-		}
-
-		maxChildDepth := 0
-		for _, s := range guide.Metadata.SubGuides {
-			if _, exists := guides[s.Guide]; !exists {
-				continue
-			}
-			childDepth := getDepth(s.Guide)
-			if childDepth > maxChildDepth {
-				maxChildDepth = childDepth
-			}
-		}
-
-		res := 1 + maxChildDepth
-		memo[id] = res
-		return res
-	}
-
-	maxDepth := 0
-	for id := range guides {
-		d := getDepth(id)
-		if d > maxDepth {
-			maxDepth = d
-		}
-	}
-	return maxDepth
 }
 
 func init() {

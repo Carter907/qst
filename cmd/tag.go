@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
@@ -87,19 +86,7 @@ qst tag add examples/C_programming/Printf\ Function.md "io"`,
 		}
 		targetPath := guide.Path
 
-		normalizeSlice := func(items []string) []string {
-			var res []string
-			for _, item := range items {
-				for _, part := range strings.Split(item, ",") {
-					if trimmed := strings.TrimSpace(part); trimmed != "" {
-						res = append(res, trimmed)
-					}
-				}
-			}
-			return res
-		}
-
-		tagList := normalizeSlice(tags)
+		tagList := parseCSVOrSlice(tags)
 		addedCount := 0
 		for _, t := range tagList {
 			if err := graph.AddTag(targetPath, t); err != nil {
@@ -142,19 +129,7 @@ qst tag remove examples/C_programming/Printf\ Function.md "io"`,
 			return
 		}
 
-		normalizeSlice := func(items []string) []string {
-			var res []string
-			for _, item := range items {
-				for _, part := range strings.Split(item, ",") {
-					if trimmed := strings.TrimSpace(part); trimmed != "" {
-						res = append(res, trimmed)
-					}
-				}
-			}
-			return res
-		}
-
-		tagList := normalizeSlice(tags)
+		tagList := parseCSVOrSlice(tags)
 		removedCount := 0
 		for _, t := range tagList {
 			if err := graph.RemoveTag(guide.Path, t); err != nil {

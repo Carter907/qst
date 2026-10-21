@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -49,36 +50,15 @@ qst rm "Old Concept"`,
 		}
 
 		if deleteDryRun {
-			prereqRefs := []string{}
-			subRefs := []string{}
-			for id, g := range guides {
-				if id == guideName {
-					continue
-				}
-				for _, p := range g.Metadata.Prerequisites {
-					if p == guideName {
-						prereqRefs = append(prereqRefs, id)
-					}
-				}
-				for _, s := range g.Metadata.SubGuides {
-					if s.Guide == guideName {
-						subRefs = append(subRefs, id)
-					}
-				}
-			}
+			config, _ := graph.ParseConfig(deleteDir)
+			idx := graph.BuildIndex(guides, config)
 
-			tourRefs := []string{}
-			config, err := graph.ParseConfig(deleteDir)
-			if err == nil {
-				for _, t := range config.Tours {
-					for _, g := range t.Guides {
-						if g == guideName {
-							tourRefs = append(tourRefs, t.Name)
-							break
-						}
-					}
-				}
-			}
+			prereqRefs := append([]string(nil), idx.GetDependents(guideName)...)
+			sort.Strings(prereqRefs)
+			subRefs := append([]string(nil), idx.GetParentGuides(guideName)...)
+			sort.Strings(subRefs)
+			tourRefs := append([]string(nil), idx.GetTours(guideName)...)
+			sort.Strings(tourRefs)
 
 			totalRefs := len(prereqRefs) + len(subRefs) + len(tourRefs)
 			cmd.Printf("Dry run: Would delete '%s' (%s)\n", guideName, targetGuide.Path)

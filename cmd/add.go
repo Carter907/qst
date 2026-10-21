@@ -61,34 +61,6 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			addTags = nil
 		}()
 
-		normalizeGuideSlice := func(items []string) []string {
-			var res []string
-			for _, item := range items {
-				item = strings.TrimPrefix(item, "[")
-				item = strings.TrimSuffix(item, "]")
-				for _, part := range strings.Split(item, ",") {
-					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
-						res = append(res, cleanGuideName(trimmed))
-					}
-				}
-			}
-			return res
-		}
-
-		normalizeTagSlice := func(items []string) []string {
-			var res []string
-			for _, item := range items {
-				item = strings.TrimPrefix(item, "[")
-				item = strings.TrimSuffix(item, "]")
-				for _, part := range strings.Split(item, ",") {
-					if trimmed := strings.Trim(part, "[] \t"); trimmed != "" {
-						res = append(res, trimmed)
-					}
-				}
-			}
-			return res
-		}
-
 		if interactive {
 			prereqString := ""
 			tagsString := ""
@@ -133,10 +105,10 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			}
 
 			if !cmd.Flags().Changed("prerequisites") {
-				addPrerequisites = normalizeGuideSlice([]string{prereqString})
+				addPrerequisites = parseGuideCSVOrSlice([]string{prereqString})
 			}
 			if !cmd.Flags().Changed("tags") {
-				addTags = normalizeTagSlice([]string{tagsString})
+				addTags = parseCSVOrSlice([]string{tagsString})
 			}
 		} else {
 			if !cmd.Flags().Changed("scope") || addScope == "" {
@@ -153,9 +125,9 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			return
 		}
 
-		addPrerequisites = normalizeGuideSlice(addPrerequisites)
-		addSubguides = normalizeGuideSlice(addSubguides)
-		addTags = normalizeTagSlice(addTags)
+		addPrerequisites = parseGuideCSVOrSlice(addPrerequisites)
+		addSubguides = parseGuideCSVOrSlice(addSubguides)
+		addTags = parseCSVOrSlice(addTags)
 
 		// Parse graph to validate prerequisites and subguides if any are specified
 		var guides map[string]graph.Guide

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -37,9 +36,7 @@ qst inspect "Scanf Function" -d examples/C_programming -c`,
 }
 
 func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage bool) {
-	filename := filepath.Join(dir, guideName+".md")
-
-	guide, err := graph.ParseGuide(filename)
+	guide, _, err := resolveGuide(dir, guideName)
 	if err != nil {
 		cmd.PrintErrf("Error: guide '%s' not found or failed to parse: %v\n", guideName, err)
 		exitFunc(1)

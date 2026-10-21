@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
@@ -24,84 +21,9 @@ qst rename my_graph/Old\ Name.md "New Name"`,
 		oldName := resolveGuideAndDir(cmd, args[0], &renameDir)
 		newName := cleanGuideName(args[1])
 
-		guides, err := graph.ParseGraph(renameDir)
+		updatedCount, err := graph.RenameGuide(renameDir, oldName, newName)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
-		}
-
-		if _, exists := guides[oldName]; !exists {
-			cmd.PrintErrf("Error: guide '%s' does not exist in the graph\n", oldName)
-			exitFunc(1)
-			return
-		}
-		if _, exists := guides[newName]; exists {
-			cmd.PrintErrf("Error: guide '%s' already exists in the graph\n", newName)
-			exitFunc(1)
-			return
-		}
-
-		// Iterate and update references
-		updatedCount := 0
-		for _, guide := range guides {
-			needsUpdate := false
-			meta := guide.Metadata
-
-			for i, p := range meta.Prerequisites {
-				if p == oldName {
-					meta.Prerequisites[i] = newName
-					needsUpdate = true
-				}
-			}
-
-			for i, s := range meta.SubGuides {
-				if s.Guide == oldName {
-					meta.SubGuides[i].Guide = newName
-					needsUpdate = true
-				}
-			}
-
-			if needsUpdate {
-				err = graph.UpdateGuideMetadata(guide.Path, meta)
-				if err != nil {
-					cmd.PrintErrf("Failed to update guide '%s': %v\n", guide.ID, err)
-					exitFunc(1)
-					return
-				}
-				updatedCount++
-			}
-		}
-
-		// Update references in manifest.yaml tours
-		config, err := graph.ParseConfig(renameDir)
-		if err == nil {
-			configUpdated := false
-			for i, tour := range config.Tours {
-				for j, g := range tour.Guides {
-					if g == oldName {
-						config.Tours[i].Guides[j] = newName
-						configUpdated = true
-						updatedCount++
-					}
-				}
-			}
-			if configUpdated {
-				err = graph.UpdateConfig(renameDir, config)
-				if err != nil {
-					cmd.PrintErrf("Failed to update manifest.yaml: %v\n", err)
-					exitFunc(1)
-					return
-				}
-			}
-		}
-
-		// Finally, rename the file itself
-		oldPath := guides[oldName].Path
-		newPath := filepath.Join(filepath.Dir(oldPath), newName+".md")
-		err = os.Rename(oldPath, newPath)
-		if err != nil {
-			cmd.PrintErrf("Failed to rename file: %v\n", err)
+			cmd.PrintErrf("Error: %v\n", err)
 			exitFunc(1)
 			return
 		}

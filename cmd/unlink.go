@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	huh "charm.land/huh/v2"
@@ -42,17 +40,10 @@ qst unlink "Variables and Assignment" -i`,
 		guideName := resolveGuideAndDir(cmd, args[0], &unlinkDir)
 		unlinkPrereq = cleanGuideName(unlinkPrereq)
 		unlinkSubguide = cleanGuideName(unlinkSubguide)
-		filename := filepath.Join(unlinkDir, guideName+".md")
 
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			cmd.PrintErrf("Error: guide '%s' does not exist at %s\n", guideName, filename)
-			exitFunc(1)
-			return
-		}
-
-		currentGuide, err := graph.ParseGuide(filename)
+		currentGuide, _, err := resolveGuide(unlinkDir, guideName)
 		if err != nil {
-			cmd.PrintErrf("Failed to parse guide '%s': %v\n", guideName, err)
+			cmd.PrintErrf("Error: %v\n", err)
 			exitFunc(1)
 			return
 		}
@@ -103,7 +94,7 @@ qst unlink "Variables and Assignment" -i`,
 		}
 
 		if isPrereqSet && unlinkPrereq != "" {
-			if err := graph.RemovePrerequisite(filename, unlinkPrereq); err != nil {
+			if err := graph.RemovePrerequisite(currentGuide.Path, unlinkPrereq); err != nil {
 				cmd.PrintErrf("Error: %v\n", err)
 				exitFunc(1)
 				return
@@ -113,7 +104,7 @@ qst unlink "Variables and Assignment" -i`,
 		}
 
 		if isSubguideSet && unlinkSubguide != "" {
-			if err := graph.RemoveSubGuide(filename, unlinkSubguide); err != nil {
+			if err := graph.RemoveSubGuide(currentGuide.Path, unlinkSubguide); err != nil {
 				cmd.PrintErrf("Error: %v\n", err)
 				exitFunc(1)
 				return
