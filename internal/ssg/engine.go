@@ -12,21 +12,12 @@ import (
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
-	mathjax "github.com/litao91/goldmark-mathjax"
-	"github.com/yuin/goldmark"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
 )
 
 //go:embed templates/*
 var templatesFS embed.FS
 
+// GuideRef represents a linked reference to another guide with metadata.
 type GuideRef struct {
 	ID        string
 	Title     string
@@ -36,38 +27,7 @@ type GuideRef struct {
 	Segment   string
 }
 
-type SidebarLink struct {
-	Title    string
-	URL      string
-	IsActive bool
-	Scope    string
-}
-
-type SidebarScopeGroup struct {
-	Scope  string
-	Guides []SidebarLink
-}
-
-type SidebarTour struct {
-	Name   string
-	Guides []SidebarLink
-}
-
-type SidebarData struct {
-	HomeURL     string
-	IsHome      bool
-	Tours       []SidebarTour
-	ScopeGroups []SidebarScopeGroup
-}
-
-type TourStepRef struct {
-	TourName string
-	Step     int
-	Total    int
-	Prev     *GuideRef
-	Next     *GuideRef
-}
-
+// PageData contains the rendering context for a guide's page.
 type PageData struct {
 	Title         string
 	Scope         string
@@ -83,18 +43,7 @@ type PageData struct {
 	MermaidGraph  template.HTML
 }
 
-type SyllabusGuideRef struct {
-	Title         string
-	URL           string
-	Prerequisites []GuideRef
-	Tags          []string
-}
-
-type SyllabusScopeSection struct {
-	Scope  string
-	Guides []SyllabusGuideRef
-}
-
+// IndexPageData contains the rendering context for index.html.
 type IndexPageData struct {
 	Title        string
 	Description  string
@@ -109,125 +58,6 @@ type guideFile struct {
 	outPath    string
 	outRelPath string
 	relRoot    string
-}
-
-type linkASTTransformer struct{}
-
-func (l *linkASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
-	_ = ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		if link, ok := n.(*ast.Link); ok {
-			dest := string(link.Destination)
-			// Check if it's a relative link pointing to a .md file
-			if strings.HasSuffix(dest, ".md") && !strings.HasPrefix(dest, "http") {
-				baseDest := filepath.Base(dest)
-				if strings.ToLower(baseDest) == "index.md" {
-					dirDest := filepath.Dir(dest)
-					if dirDest == "." {
-						link.Destination = []byte("index-guide.html")
-					} else {
-						link.Destination = []byte(dirDest + "/index-guide.html")
-					}
-				} else {
-					newDest := strings.TrimSuffix(dest, ".md") + ".html"
-					link.Destination = []byte(newDest)
-				}
-			}
-		}
-		return ast.WalkContinue, nil
-	})
-}
-
-type LineNumNode struct {
-	ast.BaseInline
-	Line int
-}
-
-var KindLineNum = ast.NewNodeKind("LineNum")
-
-func (n *LineNumNode) Kind() ast.NodeKind {
-	return KindLineNum
-}
-
-func (n *LineNumNode) Dump(source []byte, level int) {
-	_ = level
-}
-
-type LineNumRenderer struct{}
-
-func (r *LineNumRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindLineNum, r.renderLineNum)
-}
-
-func (r *LineNumRenderer) renderLineNum(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	if entering {
-		ln := node.(*LineNumNode)
-		if _, err := fmt.Fprintf(w, `<span class="line-marker" id="L%d" data-line="%d"><span class="line-num">%d</span></span>`, ln.Line, ln.Line, ln.Line); err != nil {
-			return ast.WalkStop, err
-		}
-	}
-	return ast.WalkContinue, nil
-}
-
-type lineASTTransformer struct{}
-
-func (lt *lineASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
-	src := reader.Source()
-	if len(src) == 0 {
-		return
-	}
-
-	lineStarts := []int{0}
-	for i, b := range src {
-		if b == '\n' {
-			lineStarts = append(lineStarts, i+1)
-		}
-	}
-
-	getLine := func(pos int) int {
-		return sort.Search(len(lineStarts), func(i int) bool {
-			return lineStarts[i] > pos
-		})
-	}
-
-	currentLine := 0
-	_ = ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-
-		if t, ok := n.(*ast.Text); ok {
-			lineNo := getLine(t.Segment.Start)
-			if lineNo != currentLine && lineNo > 0 {
-				currentLine = lineNo
-				lnNode := &LineNumNode{Line: lineNo}
-				target := ast.Node(t)
-				for target.Parent() != nil && target.Parent().Type() != ast.TypeBlock {
-					target = target.Parent()
-				}
-				parent := target.Parent()
-				if parent != nil {
-					parent.InsertBefore(parent, target, lnNode)
-				}
-			}
-		} else if cb, ok := n.(*ast.FencedCodeBlock); ok {
-			lines := cb.Lines()
-			if lines.Len() > 0 {
-				lineNo := getLine(lines.At(0).Start) - 1
-				if lineNo > 0 && lineNo != currentLine {
-					currentLine = lineNo
-					parent := cb.Parent()
-					if parent != nil {
-						lnNode := &LineNumNode{Line: lineNo}
-						parent.InsertBefore(parent, cb, lnNode)
-					}
-				}
-			}
-		}
-		return ast.WalkContinue, nil
-	})
 }
 
 func relURL(fromOutRelPath, toOutRelPath string) string {
@@ -293,30 +123,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 	}
 
 	// 3. Initialize Goldmark
-	md := goldmark.New(
-		goldmark.WithExtensions(
-			extension.GFM,
-			extension.Footnote,
-			mathjax.MathJax,
-			highlighting.NewHighlighting(
-				highlighting.WithStyle("github"),
-			),
-		),
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-			parser.WithASTTransformers(
-				util.Prioritized(&linkASTTransformer{}, 100),
-				util.Prioritized(&lineASTTransformer{}, 200),
-			),
-		),
-		goldmark.WithRendererOptions(
-			renderer.WithNodeRenderers(
-				util.Prioritized(&LineNumRenderer{}, 500),
-			),
-			html.WithHardWraps(),
-			html.WithUnsafe(),
-		),
-	)
+	md := newMarkdownParser()
 
 	// 4. Parse Templates
 	indexTmpl, err := template.ParseFS(templatesFS, "templates/layout.html", "templates/index.html")
@@ -412,18 +219,12 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		return err
 	}
 
-	// 6. Build Inverted Relations (Dependents and Parent Guides)
-	dependentsMap := make(map[string][]string)
-	parentGuidesMap := make(map[string][]string)
-
+	// 6. Build Inverted Reference Index
+	guidesMap := make(map[string]graph.Guide, len(guideFiles))
 	for _, gf := range guideFiles {
-		for _, prereq := range gf.guide.Metadata.Prerequisites {
-			dependentsMap[prereq] = append(dependentsMap[prereq], gf.guide.ID)
-		}
-		for _, sub := range gf.guide.Metadata.SubGuides {
-			parentGuidesMap[sub.Guide] = append(parentGuidesMap[sub.Guide], gf.guide.ID)
-		}
+		guidesMap[gf.guide.ID] = gf.guide
 	}
+	graphIndex := graph.BuildIndex(guidesMap, config)
 
 	// 7. Render Guides
 	for _, gf := range guideFiles {
@@ -441,7 +242,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		}
 
 		var dependents []GuideRef
-		depIDs := append([]string(nil), dependentsMap[gf.guide.ID]...)
+		depIDs := append([]string(nil), graphIndex.GetDependents(gf.guide.ID)...)
 		sort.Strings(depIDs)
 		for _, depID := range depIDs {
 			ref := GuideRef{
@@ -471,7 +272,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		}
 
 		var parentGuides []GuideRef
-		parentIDs := append([]string(nil), parentGuidesMap[gf.guide.ID]...)
+		parentIDs := append([]string(nil), graphIndex.GetParentGuides(gf.guide.ID)...)
 		sort.Strings(parentIDs)
 		for _, parentID := range parentIDs {
 			ref := GuideRef{
@@ -549,256 +350,4 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 	}
 
 	return nil
-}
-
-func buildSyllabusScopes(config graph.Manifest, guideFiles []*guideFile, filesByID map[string]*guideFile) []SyllabusScopeSection {
-	guidesByScope := make(map[string][]*guideFile)
-	for _, gf := range guideFiles {
-		sc := gf.guide.Metadata.Scope
-		guidesByScope[sc] = append(guidesByScope[sc], gf)
-	}
-
-	var orderedScopes []string
-	seenScopes := make(map[string]bool)
-
-	// Top-down: Broadest (highest hierarchy index) down to foundational (index 0)
-	for i := len(config.Scopes) - 1; i >= 0; i-- {
-		sc := config.Scopes[i]
-		if len(guidesByScope[sc]) > 0 && !seenScopes[sc] {
-			orderedScopes = append(orderedScopes, sc)
-			seenScopes[sc] = true
-		}
-	}
-
-	var otherScopes []string
-	for sc := range guidesByScope {
-		if !seenScopes[sc] {
-			otherScopes = append(otherScopes, sc)
-		}
-	}
-	sort.Strings(otherScopes)
-	orderedScopes = append(orderedScopes, otherScopes...)
-
-	var sections []SyllabusScopeSection
-	for _, sc := range orderedScopes {
-		gfs := guidesByScope[sc]
-		sort.Slice(gfs, func(i, j int) bool {
-			return gfs[i].guide.ID < gfs[j].guide.ID
-		})
-
-		var guides []SyllabusGuideRef
-		for _, gf := range gfs {
-			var prereqs []GuideRef
-			for _, p := range gf.guide.Metadata.Prerequisites {
-				prereqGF := filesByID[p]
-				if prereqGF != nil {
-					prereqs = append(prereqs, GuideRef{
-						ID:    p,
-						Title: prereqGF.guide.ID,
-						URL:   relURL("index.html", prereqGF.outRelPath),
-						Scope: prereqGF.guide.Metadata.Scope,
-					})
-				} else {
-					prereqs = append(prereqs, GuideRef{
-						ID:    p,
-						Title: p,
-						URL:   "",
-					})
-				}
-			}
-
-			tags := append([]string(nil), gf.guide.Metadata.Tags...)
-
-			guides = append(guides, SyllabusGuideRef{
-				Title:         gf.guide.ID,
-				URL:           relURL("index.html", gf.outRelPath),
-				Prerequisites: prereqs,
-				Tags:          tags,
-			})
-		}
-
-		scopeName := sc
-		if scopeName == "" {
-			scopeName = "other"
-		}
-
-		sections = append(sections, SyllabusScopeSection{
-			Scope:  scopeName,
-			Guides: guides,
-		})
-	}
-
-	return sections
-}
-
-func buildSidebar(fromOutRelPath string, currentID string, config graph.Manifest, guideFiles []*guideFile, filesByID map[string]*guideFile) SidebarData {
-	homeURL := relURL(fromOutRelPath, "index.html")
-
-	// 1. Build Tours
-	var sidebarTours []SidebarTour
-	for _, tour := range config.Tours {
-		var tourGuides []SidebarLink
-		for _, gID := range tour.Guides {
-			gID = strings.TrimSpace(gID)
-			if gID == "" {
-				continue
-			}
-			target, exists := filesByID[gID]
-			link := SidebarLink{
-				Title:    gID,
-				IsActive: gID == currentID,
-			}
-			if exists {
-				link.URL = relURL(fromOutRelPath, target.outRelPath)
-				link.Scope = target.guide.Metadata.Scope
-			}
-			tourGuides = append(tourGuides, link)
-		}
-		if len(tourGuides) > 0 {
-			sidebarTours = append(sidebarTours, SidebarTour{
-				Name:   tour.Name,
-				Guides: tourGuides,
-			})
-		}
-	}
-
-	// 2. Build Scope Groups
-	guidesByScope := make(map[string][]*guideFile)
-	for _, gf := range guideFiles {
-		sc := gf.guide.Metadata.Scope
-		guidesByScope[sc] = append(guidesByScope[sc], gf)
-	}
-
-	var scopeGroups []SidebarScopeGroup
-	seenScopes := make(map[string]bool)
-
-	for _, sc := range config.Scopes {
-		gfs := guidesByScope[sc]
-		if len(gfs) == 0 {
-			continue
-		}
-		seenScopes[sc] = true
-
-		sortedGfs := append([]*guideFile(nil), gfs...)
-		sort.Slice(sortedGfs, func(i, j int) bool {
-			return sortedGfs[i].guide.ID < sortedGfs[j].guide.ID
-		})
-
-		var links []SidebarLink
-		for _, gf := range sortedGfs {
-			links = append(links, SidebarLink{
-				Title:    gf.guide.ID,
-				URL:      relURL(fromOutRelPath, gf.outRelPath),
-				IsActive: gf.guide.ID == currentID,
-				Scope:    sc,
-			})
-		}
-		scopeGroups = append(scopeGroups, SidebarScopeGroup{
-			Scope:  sc,
-			Guides: links,
-		})
-	}
-
-	var otherScopes []string
-	for sc := range guidesByScope {
-		if !seenScopes[sc] {
-			otherScopes = append(otherScopes, sc)
-		}
-	}
-	sort.Strings(otherScopes)
-	for _, sc := range otherScopes {
-		gfs := guidesByScope[sc]
-		if len(gfs) == 0 {
-			continue
-		}
-		sortedGfs := append([]*guideFile(nil), gfs...)
-		sort.Slice(sortedGfs, func(i, j int) bool {
-			return sortedGfs[i].guide.ID < sortedGfs[j].guide.ID
-		})
-
-		var links []SidebarLink
-		for _, gf := range sortedGfs {
-			links = append(links, SidebarLink{
-				Title:    gf.guide.ID,
-				URL:      relURL(fromOutRelPath, gf.outRelPath),
-				IsActive: gf.guide.ID == currentID,
-				Scope:    sc,
-			})
-		}
-		groupName := sc
-		if groupName == "" {
-			groupName = "other"
-		}
-		scopeGroups = append(scopeGroups, SidebarScopeGroup{
-			Scope:  groupName,
-			Guides: links,
-		})
-	}
-
-	return SidebarData{
-		HomeURL:     homeURL,
-		IsHome:      currentID == "",
-		Tours:       sidebarTours,
-		ScopeGroups: scopeGroups,
-	}
-}
-
-func buildTourSteps(currentGf *guideFile, config graph.Manifest, filesByID map[string]*guideFile) []TourStepRef {
-	var steps []TourStepRef
-	for _, tour := range config.Tours {
-		var tourGuideIDs []string
-		for _, gID := range tour.Guides {
-			gID = strings.TrimSpace(gID)
-			if gID != "" {
-				tourGuideIDs = append(tourGuideIDs, gID)
-			}
-		}
-
-		currentIndex := -1
-		for i, gID := range tourGuideIDs {
-			if gID == currentGf.guide.ID {
-				currentIndex = i
-				break
-			}
-		}
-
-		if currentIndex == -1 {
-			continue
-		}
-
-		stepRef := TourStepRef{
-			TourName: tour.Name,
-			Step:     currentIndex + 1,
-			Total:    len(tourGuideIDs),
-		}
-
-		if currentIndex > 0 {
-			prevID := tourGuideIDs[currentIndex-1]
-			ref := GuideRef{
-				ID:    prevID,
-				Title: prevID,
-			}
-			if target, ok := filesByID[prevID]; ok {
-				ref.URL = relURL(currentGf.outRelPath, target.outRelPath)
-				ref.Scope = target.guide.Metadata.Scope
-			}
-			stepRef.Prev = &ref
-		}
-
-		if currentIndex < len(tourGuideIDs)-1 {
-			nextID := tourGuideIDs[currentIndex+1]
-			ref := GuideRef{
-				ID:    nextID,
-				Title: nextID,
-			}
-			if target, ok := filesByID[nextID]; ok {
-				ref.URL = relURL(currentGf.outRelPath, target.outRelPath)
-				ref.Scope = target.guide.Metadata.Scope
-			}
-			stepRef.Next = &ref
-		}
-
-		steps = append(steps, stepRef)
-	}
-	return steps
 }
