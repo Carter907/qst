@@ -216,3 +216,199 @@ func TestAnalyzeGuideCoverage(t *testing.T) {
 		t.Errorf("expected Def1 on line 2, got %v", report.Lines[1].SubGuides)
 	}
 }
+
+func TestGraphIndexAndAnalytics(t *testing.T) {
+	guides := map[string]Guide{
+		"A": {
+			ID: "A",
+			Metadata: GuideMetadata{
+				Scope:         "lesson",
+				Prerequisites: []string{},
+				SubGuides: []SubGuideRelation{
+					{Guide: "B"},
+				},
+			},
+		},
+		"B": {
+			ID: "B",
+			Metadata: GuideMetadata{
+				Scope:         "explanation",
+				Prerequisites: []string{},
+				SubGuides: []SubGuideRelation{
+					{Guide: "C"},
+				},
+			},
+		},
+		"C": {
+			ID: "C",
+			Metadata: GuideMetadata{
+				Scope:         "definition",
+				Prerequisites: []string{"D"},
+			},
+		},
+		"D": {
+			ID: "D",
+			Metadata: GuideMetadata{
+				Scope:         "definition",
+				Prerequisites: []string{},
+			},
+		},
+		"Orphan": {
+			ID: "Orphan",
+			Metadata: GuideMetadata{
+				Scope: "definition",
+			},
+		},
+	}
+
+	config := Manifest{
+		Tours: []TourConfig{
+			{Name: "Tour1", Guides: []string{"A", "B"}},
+		},
+	}
+
+	idx := BuildIndex(guides, config)
+
+	// Inverted lookup tests
+	dependents := idx.GetDependents("D")
+	if len(dependents) != 1 || dependents[0] != "C" {
+		t.Errorf("expected dependents of D to be [C], got %v", dependents)
+	}
+
+	parents := idx.GetParentGuides("B")
+	if len(parents) != 1 || parents[0] != "A" {
+		t.Errorf("expected parent guides of B to be [A], got %v", parents)
+	}
+
+	tours := idx.GetTours("A")
+	if len(tours) != 1 || tours[0] != "Tour1" {
+		t.Errorf("expected tours for A to be [Tour1], got %v", tours)
+	}
+
+	if idx.InDegree("C") != 2 { // Prereq from D + Subguide from B
+		t.Errorf("expected inDegree(C) = 2, got %d", idx.InDegree("C"))
+	}
+	if idx.OutDegree("A") != 1 { // Subguide to B
+		t.Errorf("expected outDegree(A) = 1, got %d", idx.OutDegree("A"))
+	}
+	if !idx.IsOrphan("Orphan") {
+		t.Errorf("expected Orphan to be orphan, got false")
+	}
+	if idx.IsOrphan("A") {
+		t.Errorf("expected A not to be orphan, got true")
+	}
+
+	// Analytics tests
+	chain := LongestPrerequisiteChain(guides)
+	if len(chain) != 2 || chain[0] != "D" || chain[1] != "C" {
+		t.Errorf("expected longest prereq chain [D, C], got %v", chain)
+	}
+
+	depth := MaxSubguideDepth(guides)
+	if depth != 3 { // A -> B -> C = 3 levels
+		t.Errorf("expected max subguide depth 3, got %d", depth)
+	}
+}
+
+func TestRenameGuide(t *testing.T) {
+	tempDir := t.TempDir()
+
+	manifest := `title: Rename Test
+scopes:
+  - definition
+  - explanation
+adherences:
+  - strict
+tours:
+  - name: Core
+    guides:
+      - OldGuide
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "manifest.yaml"), []byte(manifest), 0644); err != nil {
+		t.Fatalf("failed to write manifest: %v", err)
+	}
+
+	oldContent := `---
+scope: definition
+prerequisites: []
+sub_guides: []
+tags: [basic]
+---
+# Old Guide
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "OldGuide.md"), []byte(oldContent), 0644); err != nil {
+		t.Fatalf("failed to write OldGuide: %v", err)
+	}
+
+	parentContent := `---
+scope: explanation
+prerequisites: []
+sub_guides:
+  - guide: OldGuide
+    adherence: strict
+    segment: "1-1"
+tags: []
+---
+# Parent
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "Parent.md"), []byte(parentContent), 0644); err != nil {
+		t.Fatalf("failed to write Parent: %v", err)
+	}
+
+	prereqContent := `---
+scope: definition
+prerequisites:
+  - OldGuide
+sub_guides: []
+tags: []
+---
+# Dependent
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "Dependent.md"), []byte(prereqContent), 0644); err != nil {
+		t.Fatalf("failed to write Dependent: %v", err)
+	}
+
+	updated, err := RenameGuide(tempDir, "OldGuide", "NewGuide")
+	if err != nil {
+		t.Fatalf("RenameGuide() unexpected error: %v", err)
+	}
+	if updated != 3 { // Parent subguide + Dependent prereq + Tour
+		t.Errorf("expected 3 updated references, got %d", updated)
+	}
+
+	// Verify old file gone, new file exists
+	if _, err := os.Stat(filepath.Join(tempDir, "OldGuide.md")); !os.IsNotExist(err) {
+		t.Errorf("expected OldGuide.md to be removed")
+	}
+	if _, err := os.Stat(filepath.Join(tempDir, "NewGuide.md")); err != nil {
+		t.Errorf("expected NewGuide.md to exist: %v", err)
+	}
+
+	// Verify references in Parent
+	parentG, err := ParseGuide(filepath.Join(tempDir, "Parent.md"))
+	if err != nil {
+		t.Fatalf("failed to parse Parent: %v", err)
+	}
+	if len(parentG.Metadata.SubGuides) != 1 || parentG.Metadata.SubGuides[0].Guide != "NewGuide" {
+		t.Errorf("expected subguide NewGuide in Parent, got %v", parentG.Metadata.SubGuides)
+	}
+
+	// Verify references in Dependent
+	depG, err := ParseGuide(filepath.Join(tempDir, "Dependent.md"))
+	if err != nil {
+		t.Fatalf("failed to parse Dependent: %v", err)
+	}
+	if len(depG.Metadata.Prerequisites) != 1 || depG.Metadata.Prerequisites[0] != "NewGuide" {
+		t.Errorf("expected prerequisite NewGuide in Dependent, got %v", depG.Metadata.Prerequisites)
+	}
+
+	// Verify references in Manifest
+	cfg, err := ParseConfig(tempDir)
+	if err != nil {
+		t.Fatalf("failed to parse manifest: %v", err)
+	}
+	if len(cfg.Tours[0].Guides) != 1 || cfg.Tours[0].Guides[0] != "NewGuide" {
+		t.Errorf("expected tour guide NewGuide, got %v", cfg.Tours[0].Guides)
+	}
+}
+
