@@ -71,12 +71,13 @@ func relURL(fromOutRelPath, toOutRelPath string) string {
 
 // BuildOptions defines configuration options for compiling a static site.
 type BuildOptions struct {
-	DirPath   string
-	OutDir    string
-	Offline   bool
-	VendorDir string
-	CacheDir  string
-	WarnFunc  func(format string, args ...any)
+	DirPath    string
+	OutDir     string
+	Offline    bool
+	VendorDir  string
+	CacheDir   string
+	SkipVendor bool
+	WarnFunc   func(format string, args ...any)
 }
 
 // BuildSite compiles the static site from dirPath into outDir with default options.
@@ -103,14 +104,20 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 	}
 
 	// 1. Prepare vendor assets in outDir/assets/vendor
-	vendorOpts := VendorOptions{
-		Offline:   opts.Offline,
-		VendorDir: opts.VendorDir,
-		CacheDir:  opts.CacheDir,
-		WarnFunc:  opts.WarnFunc,
-	}
-	if err := EnsureVendorAssets(outDir, vendorOpts); err != nil {
-		return fmt.Errorf("failed to prepare vendor assets: %w", err)
+	if !opts.SkipVendor {
+		vendorOpts := VendorOptions{
+			Offline:   opts.Offline,
+			VendorDir: opts.VendorDir,
+			CacheDir:  opts.CacheDir,
+			WarnFunc:  opts.WarnFunc,
+		}
+		if err := EnsureVendorAssets(outDir, vendorOpts); err != nil {
+			return fmt.Errorf("failed to prepare vendor assets: %w", err)
+		}
+	} else {
+		if err := os.MkdirAll(filepath.Join(outDir, "assets"), 0o755); err != nil {
+			return fmt.Errorf("failed to create assets dir: %w", err)
+		}
 	}
 
 	// 2. Copy style.css to outDir/assets
@@ -151,10 +158,13 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			if absPath == absOutDir {
 				return filepath.SkipDir
 			}
-			name := info.Name()
-			if path != dirPath && (strings.HasPrefix(name, ".") || name == "vendor" || name == "assets" || name == "public") {
+			if path != dirPath && graph.IsIgnoredDir(info.Name()) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+
+		if strings.HasPrefix(info.Name(), ".") {
 			return nil
 		}
 
@@ -187,20 +197,9 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 				}
 			}
 
-			g, err := graph.ParseGuide(path)
+			g, err := graph.ParseGuidePermissive(path)
 			if err != nil {
-				// Fallback for markdown files without valid frontmatter
-				src, readErr := os.ReadFile(path)
-				if readErr != nil {
-					return readErr
-				}
-				id := strings.TrimSuffix(info.Name(), ".md")
-				g = graph.Guide{
-					ID:         id,
-					Path:       path,
-					Body:       string(src),
-					HasContent: len(src) > 0,
-				}
+				return err
 			}
 
 			gf := &guideFile{
@@ -212,6 +211,15 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			}
 			guideFiles = append(guideFiles, gf)
 			filesByID[g.ID] = gf
+			return nil
+		}
+
+		if graph.IsStaticAssetExt(filepath.Ext(info.Name())) {
+			relPath, err := filepath.Rel(dirPath, path)
+			if err != nil {
+				return err
+			}
+			return copyFile(path, filepath.Join(outDir, relPath))
 		}
 		return nil
 	})

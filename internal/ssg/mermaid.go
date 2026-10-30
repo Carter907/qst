@@ -48,6 +48,79 @@ type MermaidOptions struct {
 	ClickURLFunc     func(guideID string) string // if non-nil, emits click directives
 }
 
+// buildMermaidNodeIDs maps a sorted slice of guide IDs to unique, collision-free Mermaid node identifiers.
+func buildMermaidNodeIDs(ids []string) map[string]string {
+	nodeIDs := make(map[string]string, len(ids))
+	usedIDs := make(map[string]bool, len(ids))
+
+	for _, id := range ids {
+		clean := cleanMermaidID(id)
+		candidate := clean
+		counter := 1
+		for usedIDs[candidate] {
+			counter++
+			candidate = fmt.Sprintf("%s_%d", clean, counter)
+		}
+		usedIDs[candidate] = true
+		nodeIDs[id] = candidate
+	}
+	return nodeIDs
+}
+
+// GenerateGlobalMermaid generates a full-graph Mermaid.js TD flowchart for all guides in the graph.
+func GenerateGlobalMermaid(guides map[string]graph.Guide) string {
+	var sb strings.Builder
+	sb.WriteString("```mermaid\ngraph TD\n")
+
+	var ids []string
+	seen := make(map[string]bool, len(guides))
+	for id := range guides {
+		ids = append(ids, id)
+		seen[id] = true
+	}
+	sort.Strings(ids)
+
+	allIDs := append([]string(nil), ids...)
+	for _, id := range ids {
+		g := guides[id]
+		for _, p := range g.Metadata.Prerequisites {
+			if !seen[p] {
+				seen[p] = true
+				allIDs = append(allIDs, p)
+			}
+		}
+		for _, s := range g.Metadata.SubGuides {
+			if !seen[s.Guide] {
+				seen[s.Guide] = true
+				allIDs = append(allIDs, s.Guide)
+			}
+		}
+	}
+	sort.Strings(allIDs)
+	nodeIDs := buildMermaidNodeIDs(allIDs)
+
+	for _, id := range ids {
+		escapedID := strings.ReplaceAll(id, "\"", "#quot;")
+		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", nodeIDs[id], escapedID)
+	}
+
+	for _, id := range ids {
+		guide := guides[id]
+		cleanID := nodeIDs[id]
+
+		for _, prereq := range guide.Metadata.Prerequisites {
+			fmt.Fprintf(&sb, "    %s --> %s\n", nodeIDs[prereq], cleanID)
+		}
+
+		for _, sub := range guide.Metadata.SubGuides {
+			fmt.Fprintf(&sb, "    %s -.-> %s\n", cleanID, nodeIDs[sub.Guide])
+		}
+	}
+
+	sb.WriteString("```")
+	return sb.String()
+}
+
 // BuildGuideMermaid generates a localized forward-only 1-hop Mermaid diagram for a guide.
 func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts MermaidOptions) string {
 	prereqs := guide.Metadata.Prerequisites
@@ -79,20 +152,7 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 	sort.Strings(ids)
 
 	// 2. Map guide IDs to unique safe Mermaid node identifiers
-	nodeIDs := make(map[string]string, len(ids))
-	usedIDs := make(map[string]bool, len(ids))
-
-	for _, id := range ids {
-		clean := cleanMermaidID(id)
-		candidate := clean
-		counter := 1
-		for usedIDs[candidate] {
-			counter++
-			candidate = fmt.Sprintf("%s_%d", clean, counter)
-		}
-		usedIDs[candidate] = true
-		nodeIDs[id] = candidate
-	}
+	nodeIDs := buildMermaidNodeIDs(ids)
 
 	// 3. Declare nodes with academic scope prefix
 	for _, id := range ids {

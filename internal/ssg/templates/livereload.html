@@ -1,0 +1,71 @@
+<script data-qst-live-reload>
+(function() {
+  var SCROLL_KEY = "qst_serve_scroll_y";
+  try {
+    var savedY = sessionStorage.getItem(SCROLL_KEY);
+    if (savedY !== null) {
+      sessionStorage.removeItem(SCROLL_KEY);
+      var y = parseInt(savedY, 10);
+      if (!isNaN(y)) {
+        window.addEventListener("load", function() {
+          window.scrollTo(0, y);
+        });
+      }
+    }
+  } catch (_) {}
+
+  function showErrorOverlay(message) {
+    var existing = document.getElementById("qst-error-overlay");
+    if (!existing) {
+      existing = document.createElement("div");
+      existing.id = "qst-error-overlay";
+      existing.style.cssText = "position:fixed;bottom:16px;right:16px;left:16px;max-width:720px;margin-left:auto;background:#1f2937;color:#f9fafb;border-left:5px solid #ef4444;border-radius:6px;box-shadow:0 10px 25px rgba(0,0,0,0.35);padding:16px;z-index:2147483647;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;";
+      document.body.appendChild(existing);
+    }
+    existing.textContent = "";
+    var header = document.createElement("div");
+    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:bold;color:#fca5a5;";
+    var title = document.createElement("span");
+    title.textContent = "qst serve: Build / Validation Diagnostic";
+    var closeBtn = document.createElement("button");
+    closeBtn.textContent = "Dismiss";
+    closeBtn.style.cssText = "background:#374151;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px;";
+    closeBtn.onclick = function() { existing.remove(); };
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    var pre = document.createElement("pre");
+    pre.style.cssText = "margin:0;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;color:#f3f4f6;line-height:1.45;";
+    pre.textContent = message;
+    existing.appendChild(header);
+    existing.appendChild(pre);
+  }
+
+  function clearErrorOverlay() {
+    var existing = document.getElementById("qst-error-overlay");
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  if (typeof EventSource !== "undefined") {
+    var es = new EventSource("/_qst/events");
+    es.addEventListener("reload", function() {
+      try {
+        sessionStorage.setItem(SCROLL_KEY, String(window.scrollY || 0));
+      } catch (_) {}
+      window.location.reload();
+    });
+    es.addEventListener("build_error", function(e) {
+      try {
+        var payload = JSON.parse(e.data);
+        if (payload && payload.message) {
+          showErrorOverlay(payload.message);
+        }
+      } catch (_) {}
+    });
+    es.addEventListener("clear_error", function() {
+      clearErrorOverlay();
+    });
+  }
+})();
+</script>
