@@ -24,7 +24,9 @@ qst can be used to initialize knowledge graph directories, update unformatted ma
 * [qst link](qst_link.md)	 - Link a subguide or prerequisite to an existing guide.
 * [qst list](qst_list.md)	 - List guides in the knowledge graph
 * [qst new](qst_new.md)	 - create a new knowledge graph directory
+* [qst path](qst_path.md)	 - Generate a topological learning path for a guide or the entire graph
 * [qst rename](qst_rename.md)	 - Rename a guide and update all references to it
+* [qst serve](qst_serve.md)	 - Start a live-reloading local development server for the knowledge graph
 * [qst stats](qst_stats.md)	 - Display statistics about the knowledge graph
 * [qst tag](qst_tag.md)	 - Manage taxonomy tags on guides in the knowledge graph
 * [qst tour](qst_tour.md)	 - Manage curriculum tours in the knowledge graph

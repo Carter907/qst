@@ -96,6 +96,7 @@ qst form
 - **[Concepts & Theory](docs/concepts.md)**: Theoretical foundations of curriculum graphs, normalization, and pedagogical tours.
 - **[Installation](docs/installation.md)**: Installation methods, building from source, and shell configuration.
 - **[CLI Reference](docs/cli/)**: Full documentation for each Cobra command and flag.
+- **[Architecture & Developer Onboarding](examples/qst_Architecture/)**: `qst` documents its own codebase as a self-hosted knowledge graph. Run `qst serve examples/qst_Architecture --open` to explore the interactive system architecture and onboarding tour.
 
 ---
 

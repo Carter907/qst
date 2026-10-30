@@ -1,5 +1,13 @@
 Contributing to this project is greatly appreciated as you help make learning more accessible for everyone.
 
+## Exploring the Codebase Architecture
+
+`qst` models its own internal architecture as a self-hosted knowledge graph in [`examples/qst_Architecture/`](examples/qst_Architecture/). New contributors can launch the live development server to browse the system architecture and follow the **Onboarding & Architecture Overview** tour:
+
+```sh
+go run . serve examples/qst_Architecture --open
+```
+
 ## Example Procedure
 
 Contributions are done through issues and pull requests.
