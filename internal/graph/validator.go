@@ -202,12 +202,47 @@ func validatePrerequisites(guide Guide, guides map[string]Guide) error {
 		if !exists {
 			return fmt.Errorf("guide '%s' references unknown prerequisite: '%s'", guide.ID, prereqID)
 		}
-		if prereq.Metadata.Scope != guide.Metadata.Scope {
-			return fmt.Errorf("guide '%s' (scope: '%s') has prerequisite '%s' with mismatched scope: '%s'. Horizontal edges must have exactly identical scope",
-				guide.ID, guide.Metadata.Scope, prereqID, prereq.Metadata.Scope)
+		if err := checkPrerequisiteScope(guide.ID, guide.Metadata.Scope, prereqID, prereq.Metadata.Scope); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func checkPrerequisiteScope(sourceID, sourceScope, prereqID, prereqScope string) error {
+	if sourceScope != prereqScope {
+		return fmt.Errorf("guide '%s' (scope: '%s') has prerequisite '%s' with mismatched scope: '%s'. Horizontal edges must have exactly identical scope",
+			sourceID, sourceScope, prereqID, prereqScope)
+	}
+	return nil
+}
+
+func checkSubGuideScope(parentID, parentScope string, parentScopeVal int, subID, subScope string, subScopeVal int, config Manifest) error {
+	if subScopeVal == 0 {
+		return fmt.Errorf("subguide '%s' has invalid scope '%s'", subID, subScope)
+	}
+	if subScopeVal >= parentScopeVal {
+		return fmt.Errorf("guide '%s' (scope: '%s') has sub_guide '%s' with invalid scope: '%s'. Sub-guides must have a strictly smaller scope",
+			parentID, parentScope, subID, subScope)
+	}
+	if !config.RelaxedSubguides && parentScopeVal-subScopeVal != 1 {
+		return fmt.Errorf("guide '%s' (scope: '%s') has sub_guide '%s' with scope: '%s', but relaxed_subguides is false. Sub-guides must be exactly one scope level below their parent",
+			parentID, parentScope, subID, subScope)
+	}
+	return nil
+}
+
+func cloneGuides(guides map[string]Guide) map[string]Guide {
+	cloned := make(map[string]Guide, len(guides))
+	for k, v := range guides {
+		cloned[k] = v
+	}
+	return cloned
+}
+
+// hasTrailingNewline returns true if the guide body ends with a newline (producing a trailing empty line).
+func hasTrailingNewline(body string) bool {
+	return strings.HasSuffix(body, "\n")
 }
 
 func validateSubGuides(guide Guide, guides map[string]Guide, config Manifest, guideScopeVal int) ([][2]int, error) {
@@ -241,15 +276,8 @@ func validateSubGuides(guide Guide, guides map[string]Guide, config Manifest, gu
 		allRanges = append(allRanges, ranges...)
 
 		subScopeVal := getScopeValue(sub.Metadata.Scope, config)
-
-		if subScopeVal >= guideScopeVal {
-			return nil, fmt.Errorf("guide '%s' (scope: '%s') has sub_guide '%s' with invalid scope: '%s'. Sub-guides must have a strictly smaller scope",
-				guide.ID, guide.Metadata.Scope, subID, sub.Metadata.Scope)
-		}
-
-		if !config.RelaxedSubguides && guideScopeVal-subScopeVal != 1 {
-			return nil, fmt.Errorf("guide '%s' (scope: '%s') has sub_guide '%s' with scope: '%s', but relaxed_subguides is false. Sub-guides must be exactly one scope level below their parent",
-				guide.ID, guide.Metadata.Scope, subID, sub.Metadata.Scope)
+		if err := checkSubGuideScope(guide.ID, guide.Metadata.Scope, guideScopeVal, subID, sub.Metadata.Scope, subScopeVal, config); err != nil {
+			return nil, err
 		}
 	}
 	return allRanges, nil
@@ -285,10 +313,8 @@ func validateCoverage(guide Guide, allRanges [][2]int, config Manifest) error {
 		effectiveLineCount := guide.LineCount
 		// If the file ends with a trailing newline (POSIX style EOF), the final body line is empty.
 		// Allow coverage to terminate at either LineCount or LineCount-1 if the trailing line is empty.
-		if effectiveLineCount > 0 && strings.HasSuffix(guide.Body, "\n") {
-			if allRanges[len(allRanges)-1][1] == effectiveLineCount-1 {
-				effectiveLineCount--
-			}
+		if effectiveLineCount > 0 && hasTrailingNewline(guide.Body) && allRanges[len(allRanges)-1][1] == effectiveLineCount-1 {
+			effectiveLineCount--
 		}
 		if allRanges[len(allRanges)-1][1] < effectiveLineCount {
 			return fmt.Errorf("guide '%s' is missing coverage for lines %d to %d", guide.ID, allRanges[len(allRanges)-1][1]+1, effectiveLineCount)
@@ -328,9 +354,8 @@ func ValidatePrerequisiteLink(guides map[string]Guide, config Manifest, sourceID
 		return fmt.Errorf("guide cannot be a prerequisite of itself")
 	}
 
-	if sourceGuide.Metadata.Scope != prereqGuide.Metadata.Scope {
-		return fmt.Errorf("cannot link prerequisite: '%s' has scope '%s' but '%s' has scope '%s'. Horizontal edges must have identical scope",
-			prereqID, prereqGuide.Metadata.Scope, sourceID, sourceGuide.Metadata.Scope)
+	if err := checkPrerequisiteScope(sourceID, sourceGuide.Metadata.Scope, prereqID, prereqGuide.Metadata.Scope); err != nil {
+		return err
 	}
 
 	if slices.Contains(sourceGuide.Metadata.Prerequisites, prereqID) {
@@ -338,13 +363,9 @@ func ValidatePrerequisiteLink(guides map[string]Guide, config Manifest, sourceID
 	}
 
 	// Cycle simulation
-	cloned := make(map[string]Guide, len(guides))
-	for k, v := range guides {
-		cloned[k] = v
-	}
+	cloned := cloneGuides(guides)
 	simGuide := sourceGuide
-	simGuide.Metadata.Prerequisites = append([]string(nil), sourceGuide.Metadata.Prerequisites...)
-	simGuide.Metadata.Prerequisites = append(simGuide.Metadata.Prerequisites, prereqID)
+	simGuide.Metadata.Prerequisites = append(append([]string(nil), sourceGuide.Metadata.Prerequisites...), prereqID)
 	cloned[sourceID] = simGuide
 
 	if err := CheckAcyclic(cloned); err != nil {
@@ -376,18 +397,8 @@ func ValidateSubGuideLink(guides map[string]Guide, config Manifest, parentID, su
 	}
 
 	subScopeVal := getScopeValue(subGuide.Metadata.Scope, config)
-	if subScopeVal == 0 {
-		return fmt.Errorf("subguide '%s' has invalid scope '%s'", subID, subGuide.Metadata.Scope)
-	}
-
-	if subScopeVal >= parentScopeVal {
-		return fmt.Errorf("subguide '%s' (scope: '%s') must have a strictly smaller scope than parent '%s' (scope: '%s')",
-			subID, subGuide.Metadata.Scope, parentID, parentGuide.Metadata.Scope)
-	}
-
-	if !config.RelaxedSubguides && parentScopeVal-subScopeVal != 1 {
-		return fmt.Errorf("subguide '%s' (scope: '%s') must be exactly one scope level below parent '%s' (scope: '%s') when relaxed_subguides is false",
-			subID, subGuide.Metadata.Scope, parentID, parentGuide.Metadata.Scope)
+	if err := checkSubGuideScope(parentID, parentGuide.Metadata.Scope, parentScopeVal, subID, subGuide.Metadata.Scope, subScopeVal, config); err != nil {
+		return err
 	}
 
 	if adherence != "" && !isValidAdherence(adherence, config) {
@@ -409,10 +420,7 @@ func ValidateSubGuideLink(guides map[string]Guide, config Manifest, parentID, su
 	}
 
 	// Cycle simulation
-	cloned := make(map[string]Guide, len(guides))
-	for k, v := range guides {
-		cloned[k] = v
-	}
+	cloned := cloneGuides(guides)
 	simGuide := parentGuide
 	simGuide.Metadata.SubGuides = append([]SubGuideRelation(nil), parentGuide.Metadata.SubGuides...)
 	newRel := SubGuideRelation{Guide: subID, Adherence: adherence, Segment: segment}
@@ -524,7 +532,7 @@ func AnalyzeGuideCoverage(guide Guide, config Manifest) (GuideCoverageReport, er
 	// If the file ends with a trailing newline, the final body line is empty.
 	// If that trailing line is unmapped, exclude it from TotalBodyLines and UnmappedLines
 	// so POSIX newlines at EOF do not register as unmapped errors.
-	if report.TotalBodyLines > 0 && bodyLines[report.TotalBodyLines-1] == "" && len(lineHits[report.TotalBodyLines]) == 0 {
+	if report.TotalBodyLines > 0 && hasTrailingNewline(guide.Body) && len(lineHits[report.TotalBodyLines]) == 0 {
 		report.TotalBodyLines--
 		report.UnmappedLines--
 		report.Lines = report.Lines[:report.TotalBodyLines]

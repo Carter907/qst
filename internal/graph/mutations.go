@@ -5,7 +5,44 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	yaml "gopkg.in/yaml.v3"
 )
+
+// CreateGuide writes a new markdown guide file with YAML frontmatter and body content.
+func CreateGuide(path string, meta GuideMetadata, body string) error {
+	normalizeMetadataSlices(&meta)
+	metaBytes, err := yaml.Marshal(&meta)
+	if err != nil {
+		return fmt.Errorf("failed to marshal frontmatter: %w", err)
+	}
+	content := fmt.Sprintf("---\n%s---\n\n%s", string(metaBytes), body)
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+// DefaultManifest returns a starter Manifest configuration.
+func DefaultManifest(strictCoverage bool) Manifest {
+	return Manifest{
+		Title:            "Your New Knowledge",
+		Description:      "What can you say about this knowledge?",
+		Scopes:           []string{"definition", "description", "explanation", "lesson"},
+		Adherences:       []string{"strict", "detailed", "introductory", "vague"},
+		RelaxedSubguides: false,
+		RequireSubguides: true,
+		StrictCoverage:   strictCoverage,
+		Tours:            []TourConfig{},
+	}
+}
+
+// WriteStarterGuide creates a sample starter.md guide at the given path.
+func WriteStarterGuide(path string) error {
+	meta := GuideMetadata{
+		Scope: "definition",
+		Tags:  []string{"example"},
+	}
+	body := "## Starter Guide\n\nThis is an example guide. Replace this content with your own knowledge!\n"
+	return CreateGuide(path, meta, body)
+}
 
 // AddPrerequisite adds a prerequisite to the guide at the given path if it's not already present.
 func AddPrerequisite(path string, prereq string) error {
@@ -13,10 +50,8 @@ func AddPrerequisite(path string, prereq string) error {
 	if err != nil {
 		return err
 	}
-	for _, p := range guide.Metadata.Prerequisites {
-		if p == prereq {
-			return nil
-		}
+	if slices.Contains(guide.Metadata.Prerequisites, prereq) {
+		return nil
 	}
 	guide.Metadata.Prerequisites = append(guide.Metadata.Prerequisites, prereq)
 	return UpdateGuideMetadata(path, guide.Metadata)
@@ -217,6 +252,26 @@ func RemoveGuideFromTour(dirPath string, tourName string, guideID string) error 
 	return UpdateConfig(dirPath, config)
 }
 
+// collectAffectedGuides returns a deduplicated slice of guide IDs that reference targetID
+// as either a prerequisite (dependents) or a subguide (parent guides) via GraphIndex.
+func collectAffectedGuides(idx *GraphIndex, targetID string) []string {
+	seen := make(map[string]bool)
+	var affected []string
+	for _, id := range idx.GetDependents(targetID) {
+		if !seen[id] {
+			seen[id] = true
+			affected = append(affected, id)
+		}
+	}
+	for _, id := range idx.GetParentGuides(targetID) {
+		if !seen[id] {
+			seen[id] = true
+			affected = append(affected, id)
+		}
+	}
+	return affected
+}
+
 // DeleteGuide removes a guide and prunes all incoming references across prerequisites, subguides, and manifest tours.
 // It returns the total number of references pruned from other guides and tours.
 func DeleteGuide(dirPath string, guideID string) (int, error) {
@@ -230,12 +285,15 @@ func DeleteGuide(dirPath string, guideID string) (int, error) {
 		return 0, fmt.Errorf("guide '%s' does not exist in graph", guideID)
 	}
 
+	config, cfgErr := ParseConfig(dirPath)
+	idx := BuildIndex(guides, config)
 	prunedCount := 0
 
-	for id, g := range guides {
+	for _, id := range collectAffectedGuides(idx, guideID) {
 		if id == guideID {
 			continue
 		}
+		g := guides[id]
 		meta := g.Metadata
 		needsUpdate := false
 
@@ -277,8 +335,7 @@ func DeleteGuide(dirPath string, guideID string) (int, error) {
 	}
 
 	// Prune from tours in manifest.yaml
-	config, err := ParseConfig(dirPath)
-	if err == nil {
+	if cfgErr == nil && len(idx.GetTours(guideID)) > 0 {
 		configUpdated := false
 		for i, tour := range config.Tours {
 			var updatedTourGuides []string
@@ -324,8 +381,12 @@ func RenameGuide(dirPath string, oldID string, newID string) (int, error) {
 		return 0, fmt.Errorf("guide '%s' already exists in graph", newID)
 	}
 
+	config, cfgErr := ParseConfig(dirPath)
+	idx := BuildIndex(guides, config)
 	updatedCount := 0
-	for _, guide := range guides {
+
+	for _, id := range collectAffectedGuides(idx, oldID) {
+		guide := guides[id]
 		needsUpdate := false
 		meta := guide.Metadata
 
@@ -352,8 +413,7 @@ func RenameGuide(dirPath string, oldID string, newID string) (int, error) {
 	}
 
 	// Update references in manifest.yaml tours
-	config, err := ParseConfig(dirPath)
-	if err == nil {
+	if cfgErr == nil && len(idx.GetTours(oldID)) > 0 {
 		configUpdated := false
 		for i, tour := range config.Tours {
 			for j, g := range tour.Guides {

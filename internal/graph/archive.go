@@ -30,12 +30,7 @@ func shouldArchiveEntry(relPath string, info os.FileInfo) bool {
 		return false
 	}
 
-	switch ext {
-	case ".md", ".mmd", ".mermaid", ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp":
-		return true
-	default:
-		return false
-	}
+	return ext == ".md" || IsStaticAssetExt(ext)
 }
 
 // ArchiveGraph packages all markdown guides, manifests, and supporting assets into a compressed .kng zip archive.
@@ -74,8 +69,7 @@ func ArchiveGraph(dirPath string, outputPath string) error {
 
 		// Skip hidden directories and build outputs like public/
 		if info.IsDir() {
-			base := info.Name()
-			if strings.HasPrefix(base, ".") || base == "public" {
+			if IsIgnoredDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil

@@ -67,6 +67,35 @@ func extractFrontmatter(content []byte) (*frontmatterParts, error) {
 	}, nil
 }
 
+// IsIgnoredDir returns true if a directory name should be skipped during graph traversal,
+// archiving, static site generation, or file watching.
+func IsIgnoredDir(name string) bool {
+	return strings.HasPrefix(name, ".") || name == "public" || name == "vendor" || name == "assets"
+}
+
+// IsStaticAssetExt returns true if the file extension is a supported diagram or media asset.
+func IsStaticAssetExt(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", ".mmd", ".mermaid":
+		return true
+	default:
+		return false
+	}
+}
+
+// normalizeMetadataSlices ensures nil slices in GuideMetadata serialize as empty YAML arrays [] rather than null.
+func normalizeMetadataSlices(meta *GuideMetadata) {
+	if meta.Prerequisites == nil {
+		meta.Prerequisites = []string{}
+	}
+	if meta.SubGuides == nil {
+		meta.SubGuides = []SubGuideRelation{}
+	}
+	if meta.Tags == nil {
+		meta.Tags = []string{}
+	}
+}
+
 // ParseGraph reads all markdown files in the specified directory recursively,
 // extracts their frontmatter, and returns a map of guide IDs to Guide structs.
 func ParseGraph(dirPath string) (map[string]Guide, error) {
@@ -86,9 +115,7 @@ func ParseGraph(dirPath string) (map[string]Guide, error) {
 			if path == cleanDir {
 				return nil
 			}
-			base := info.Name()
-			// Skip hidden directories (e.g. .git) and build output (public)
-			if strings.HasPrefix(base, ".") || base == "public" {
+			if IsIgnoredDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -162,6 +189,26 @@ func ParseGuide(path string) (Guide, error) {
 	}, nil
 }
 
+// ParseGuidePermissive parses a markdown guide file, falling back to a plain body Guide
+// if the file does not contain YAML frontmatter.
+func ParseGuidePermissive(path string) (Guide, error) {
+	if g, err := ParseGuide(path); err == nil {
+		return g, nil
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return Guide{}, err
+	}
+	baseName := filepath.Base(path)
+	id := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+	return Guide{
+		ID:         id,
+		Path:       path,
+		Body:       string(src),
+		HasContent: len(src) > 0,
+	}, nil
+}
+
 // ParseConfig reads the manifest.yaml (or quest.yaml fallback) configuration file in the specified directory.
 func ParseConfig(dirPath string) (Manifest, error) {
 	configPath := filepath.Join(dirPath, "manifest.yaml")
@@ -206,16 +253,7 @@ func UpdateGuideMetadata(path string, meta GuideMetadata) error {
 		return fmt.Errorf("invalid or missing YAML frontmatter in %s", path)
 	}
 
-	// Ensure nil slices serialize to empty arrays [] in yaml instead of null
-	if meta.Prerequisites == nil {
-		meta.Prerequisites = []string{}
-	}
-	if meta.SubGuides == nil {
-		meta.SubGuides = []SubGuideRelation{}
-	}
-	if meta.Tags == nil {
-		meta.Tags = []string{}
-	}
+	normalizeMetadataSlices(&meta)
 
 	metaBytes, err := yaml.Marshal(&meta)
 	if err != nil {
