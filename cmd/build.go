@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Carter907/qst/internal/ssg"
@@ -30,7 +31,7 @@ qst build . --out ./public --offline
 # Offline build using a specific vendor assets directory
 qst build . --out ./public --offline --vendor-dir /path/to/vendor`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := "."
 		if len(args) > 0 {
 			dir = args[0]
@@ -52,12 +53,11 @@ qst build . --out ./public --offline --vendor-dir /path/to/vendor`,
 			},
 		})
 		if err != nil {
-			cmd.PrintErrf("Error building site: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error building site: %w", err)
 		}
 		cmd.Println("Build complete!")
-	},
+		return nil
+	}),
 }
 
 func init() {

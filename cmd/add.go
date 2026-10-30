@@ -7,10 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v3"
 )
 
 var (
@@ -39,131 +37,61 @@ qst add "String Operations.md" --scope description --subguide "String Length.md,
 # Add to a specific directory with initial body content
 qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory Layout\n\nExplanation text."`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		name := resolveGuideAndDir(cmd, args[0], &addDir)
-		filename := filepath.Join(addDir, name+".md")
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := addDir
+		name := resolveGuideAndDir(cmd, args[0], &dir)
+		filename := filepath.Join(dir, name+".md")
 
 		if _, err := os.Stat(filename); !os.IsNotExist(err) {
-			cmd.PrintErrf("Error: %s already exists\n", filename)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: %s already exists", filename)
 		}
-		config, err := graph.ParseConfig(addDir)
+		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			cmd.PrintErrf("Failed to load manifest.yaml config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Failed to load manifest.yaml config: %w", err)
 		}
 
-		defer func() {
-			addPrerequisites = nil
-			addSubguides = nil
-			addTags = nil
-		}()
+		scope := addScope
+		prereqs := parseGuideCSVOrSlice(addPrerequisites)
+		subguides := parseGuideCSVOrSlice(addSubguides)
+		tags := parseCSVOrSlice(addTags)
+		adherence := addAdherence
+		segment := addSegment
 
 		if interactive {
-			prereqString := ""
-			tagsString := ""
-			var fields []huh.Field
-
-			if !cmd.Flags().Changed("scope") {
-				var scopeOptions []huh.Option[string]
-				for _, s := range config.Scopes {
-					scopeOptions = append(scopeOptions, huh.NewOption(s, s))
-				}
-				fields = append(fields, huh.NewSelect[string]().
-					Title("Choose your Scope").
-					Options(scopeOptions...).
-					Value(&addScope))
+			if err := promptAddGuide(cmd, config, &scope, &prereqs, &tags); err != nil {
+				return err
 			}
-
-			if !cmd.Flags().Changed("prerequisites") {
-				fields = append(fields, huh.NewInput().
-					Title("Enter prerequisites (separated by a comma)").
-					Placeholder("e.g. Guide 1, Guide 2, Guide 3").
-					Value(&prereqString))
-			}
-
-			if !cmd.Flags().Changed("tags") {
-				fields = append(fields, huh.NewInput().
-					Title("Enter tags (comma separated)").
-					Placeholder("e.g. Math, Science, Art").
-					Value(&tagsString))
-			}
-
-			if len(fields) > 0 {
-				form := huh.NewForm(
-					huh.NewGroup(fields...),
-				)
-
-				err = form.Run()
-				if err != nil {
-					cmd.PrintErrf("Failed to run form: %v\n", err)
-					exitFunc(1)
-					return
-				}
-			}
-
-			if !cmd.Flags().Changed("prerequisites") {
-				addPrerequisites = parseGuideCSVOrSlice([]string{prereqString})
-			}
-			if !cmd.Flags().Changed("tags") {
-				addTags = parseCSVOrSlice([]string{tagsString})
-			}
-		} else {
-			if !cmd.Flags().Changed("scope") || addScope == "" {
-				cmd.PrintErrln("Error: --scope is required in non-interactive mode")
-				exitFunc(1)
-				return
-			}
+		} else if !cmd.Flags().Changed("scope") || scope == "" {
+			return fmt.Errorf("Error: --scope is required in non-interactive mode")
 		}
 
-		validScope := slices.Contains(config.Scopes, addScope)
-		if !validScope {
-			cmd.PrintErrf("Error: invalid scope '%s'. Valid scopes are: %v\n", addScope, config.Scopes)
-			exitFunc(1)
-			return
+		if !slices.Contains(config.Scopes, scope) {
+			return fmt.Errorf("Error: invalid scope '%s'. Valid scopes are: %v", scope, config.Scopes)
 		}
 
-		addPrerequisites = parseGuideCSVOrSlice(addPrerequisites)
-		addSubguides = parseGuideCSVOrSlice(addSubguides)
-		addTags = parseCSVOrSlice(addTags)
-
-		// Parse graph to validate prerequisites and subguides if any are specified
 		var guides map[string]graph.Guide
-		if len(addPrerequisites) > 0 || len(addSubguides) > 0 {
-			var parseErr error
-			guides, parseErr = graph.ParseGraph(addDir)
-			if parseErr != nil {
-				cmd.PrintErrf("Error parsing graph: %v\n", parseErr)
-				exitFunc(1)
-				return
+		if len(prereqs) > 0 || len(subguides) > 0 {
+			guides, err = graph.ParseGraph(dir)
+			if err != nil {
+				return fmt.Errorf("Error parsing graph: %w", err)
 			}
 		}
 
-		// Validate prerequisites
-		for _, prereq := range addPrerequisites {
+		for _, prereq := range prereqs {
 			p, exists := guides[prereq]
 			if !exists {
-				cmd.PrintErrf("Error: prerequisite '%s' does not exist in graph\n", prereq)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Error: prerequisite '%s' does not exist in graph", prereq)
 			}
-			if p.Metadata.Scope != addScope {
-				cmd.PrintErrf("Error: prerequisite '%s' has scope '%s', which does not match guide scope '%s'\n", prereq, p.Metadata.Scope, addScope)
-				exitFunc(1)
-				return
+			if p.Metadata.Scope != scope {
+				return fmt.Errorf("Error: prerequisite '%s' has scope '%s', which does not match guide scope '%s'", prereq, p.Metadata.Scope, scope)
 			}
 		}
 
-		// Prepare initial body content
 		body := fmt.Sprintf("## %s\n\nThis is a guide for %s.\n", name, name)
 		if cmd.Flags().Changed("file") && addFile != "" {
 			fileBytes, readErr := os.ReadFile(addFile)
 			if readErr != nil {
-				cmd.PrintErrf("Failed to read body file %s: %v\n", addFile, readErr)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Failed to read body file %s: %w", addFile, readErr)
 			}
 			body = string(fileBytes)
 			if !strings.HasSuffix(body, "\n") {
@@ -178,71 +106,44 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 
 		bodyLineCount := len(strings.Split(strings.TrimSuffix(body, "\n"), "\n"))
 
-		// Validate and prepare subguides
 		var subRelations []graph.SubGuideRelation
-		if len(addSubguides) > 0 {
-			if addAdherence == "" && len(config.Adherences) > 0 {
-				addAdherence = config.Adherences[0]
+		if len(subguides) > 0 {
+			if adherence == "" && len(config.Adherences) > 0 {
+				adherence = config.Adherences[0]
 			}
 
-			// Insert virtual parent guide into guides map for validation
 			guides[name] = graph.Guide{
-				ID: name,
-				Metadata: graph.GuideMetadata{
-					Scope: addScope,
-				},
+				ID:        name,
+				Metadata:  graph.GuideMetadata{Scope: scope},
 				LineCount: bodyLineCount,
 			}
 
-			for _, sub := range addSubguides {
-				if valErr := graph.ValidateSubGuideLink(guides, config, name, sub, addAdherence, addSegment); valErr != nil {
-					cmd.PrintErrf("Error: %v\n", valErr)
-					exitFunc(1)
-					return
+			for _, sub := range subguides {
+				if valErr := graph.ValidateSubGuideLink(guides, config, name, sub, adherence, segment); valErr != nil {
+					return fmt.Errorf("Error: %w", valErr)
 				}
 				subRelations = append(subRelations, graph.SubGuideRelation{
 					Guide:     sub,
-					Adherence: addAdherence,
-					Segment:   addSegment,
+					Adherence: adherence,
+					Segment:   segment,
 				})
 			}
 		}
 
 		meta := graph.GuideMetadata{
-			Prerequisites: addPrerequisites,
+			Prerequisites: prereqs,
 			SubGuides:     subRelations,
-			Scope:         addScope,
-			Tags:          addTags,
-		}
-		// Ensure nil slices serialize to empty arrays [] in yaml instead of null
-		if meta.Prerequisites == nil {
-			meta.Prerequisites = []string{}
-		}
-		if meta.SubGuides == nil {
-			meta.SubGuides = []graph.SubGuideRelation{}
-		}
-		if meta.Tags == nil {
-			meta.Tags = []string{}
+			Scope:         scope,
+			Tags:          tags,
 		}
 
-		metaBytes, err := yaml.Marshal(&meta)
-		if err != nil {
-			cmd.PrintErrf("Failed to marshal frontmatter: %v\n", err)
-			exitFunc(1)
-			return
-		}
-
-		content := fmt.Sprintf("---\n%s---\n\n%s", string(metaBytes), body)
-
-		err = os.WriteFile(filename, []byte(content), 0o644)
-		if err != nil {
-			cmd.PrintErrf("Failed to write %s: %v\n", filename, err)
-			exitFunc(1)
-			return
+		if err := graph.CreateGuide(filename, meta, body); err != nil {
+			return fmt.Errorf("Failed to write %s: %w", filename, err)
 		}
 
 		cmd.Printf("Successfully added new guide: %s\n", filename)
-	},
+		return nil
+	}),
 }
 
 func init() {

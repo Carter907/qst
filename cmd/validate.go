@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -17,7 +18,7 @@ qst validate
 # Specify a Path
 qst validate my_knowledge_graph_dir/`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := "."
 		if len(args) > 0 {
 			dir = args[0]
@@ -25,33 +26,25 @@ qst validate my_knowledge_graph_dir/`,
 
 		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			cmd.PrintErrf("Error loading config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error loading config: %w", err)
 		}
 
-		err = graph.ValidateGraph(guides, config)
-		if err != nil {
-			cmd.PrintErrf("Validation failed:\n%v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.ValidateGraph(guides, config); err != nil {
+			return fmt.Errorf("Validation failed:\n%w", err)
 		}
 
 		if _, err := filepath.Abs(dir); err != nil {
-			cmd.PrintErrf("Error resolving path: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error resolving path: %w", err)
 		}
 
 		cmd.Printf("Knowledge graph parses and is valid with %d guides in %s\n", len(guides), dir)
-	},
+		return nil
+	}),
 }
 
 func init() {

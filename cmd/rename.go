@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
@@ -17,19 +19,19 @@ qst rename "Old Name" "New Name" -d my_graph/
 qst rename "Old Name.md" "New Name.md"
 qst rename my_graph/Old\ Name.md "New Name"`,
 	Args: cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		oldName := resolveGuideAndDir(cmd, args[0], &renameDir)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := renameDir
+		oldName := resolveGuideAndDir(cmd, args[0], &dir)
 		newName := cleanGuideName(args[1])
 
-		updatedCount, err := graph.RenameGuide(renameDir, oldName, newName)
+		updatedCount, err := graph.RenameGuide(dir, oldName, newName)
 		if err != nil {
-			cmd.PrintErrf("Error: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		cmd.Printf("Successfully renamed '%s' to '%s' and updated %d references.\n", oldName, newName, updatedCount)
-	},
+		return nil
+	}),
 }
 
 func init() {

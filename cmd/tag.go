@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -24,12 +25,10 @@ qst tag list
 # List tags in a specific directory
 qst tag list -d examples/C_programming`,
 	Args: cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		guides, err := graph.ParseGraph(tagDir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		tagCounts := make(map[string]int)
@@ -41,7 +40,7 @@ qst tag list -d examples/C_programming`,
 
 		if len(tagCounts) == 0 {
 			cmd.Println("No tags found across the knowledge graph.")
-			return
+			return nil
 		}
 
 		var tags []string
@@ -54,7 +53,8 @@ qst tag list -d examples/C_programming`,
 		for _, t := range tags {
 			cmd.Printf("  • %-20s (%d guides)\n", t, tagCounts[t])
 		}
-	},
+		return nil
+	}),
 }
 
 var tagAddCmd = &cobra.Command{
@@ -67,22 +67,19 @@ qst tag add "Printf Function" "io" "c-standard" -d examples/C_programming
 qst tag add "Printf Function.md" "io" -d examples/C_programming
 qst tag add examples/C_programming/Printf\ Function.md "io"`,
 	Args: cobra.MinimumNArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &tagDir)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := tagDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 		tags := args[1:]
 
-		guides, err := graph.ParseGraph(tagDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		guide, exists := guides[guideName]
 		if !exists {
-			cmd.PrintErrf("Error: guide '%s' does not exist in graph\n", guideName)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
 		}
 		targetPath := guide.Path
 
@@ -90,15 +87,14 @@ qst tag add examples/C_programming/Printf\ Function.md "io"`,
 		addedCount := 0
 		for _, t := range tagList {
 			if err := graph.AddTag(targetPath, t); err != nil {
-				cmd.PrintErrf("Failed to add tag '%s': %v\n", t, err)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Failed to add tag '%s': %w", t, err)
 			}
 			addedCount++
 		}
 
 		cmd.Printf("Successfully added %d tag(s) to '%s'\n", addedCount, guideName)
-	},
+		return nil
+	}),
 }
 
 var tagRemoveCmd = &cobra.Command{
@@ -111,37 +107,33 @@ qst tag remove "Printf Function" "io" -d examples/C_programming
 qst tag remove "Printf Function.md" "io" -d examples/C_programming
 qst tag remove examples/C_programming/Printf\ Function.md "io"`,
 	Args: cobra.MinimumNArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &tagDir)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := tagDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 		tags := args[1:]
 
-		guides, err := graph.ParseGraph(tagDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		guide, exists := guides[guideName]
 		if !exists {
-			cmd.PrintErrf("Error: guide '%s' does not exist in graph\n", guideName)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
 		}
 
 		tagList := parseCSVOrSlice(tags)
 		removedCount := 0
 		for _, t := range tagList {
 			if err := graph.RemoveTag(guide.Path, t); err != nil {
-				cmd.PrintErrf("Failed to remove tag '%s': %v\n", t, err)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Failed to remove tag '%s': %w", t, err)
 			}
 			removedCount++
 		}
 
 		cmd.Printf("Successfully removed %d tag(s) from '%s'\n", removedCount, guideName)
-	},
+		return nil
+	}),
 }
 
 func init() {

@@ -2,13 +2,16 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Carter907/qst/internal/graph"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -90,19 +93,32 @@ func executeCommandWithExit(args ...string) (string, int, error) {
 	rootCmd.SetErr(buf)
 	rootCmd.SetArgs(args)
 
-	// Reset all command flags so state does not leak between test invocations
-	for _, c := range rootCmd.Commands() {
-		c.Flags().VisitAll(func(f *pflag.Flag) {
-			f.Changed = false
-			_ = f.Value.Set(f.DefValue)
-		})
+	ctx := rootCmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	rootCmd.Flags().VisitAll(func(f *pflag.Flag) {
-		f.Changed = false
-		_ = f.Value.Set(f.DefValue)
-	})
 
-	err := rootCmd.Execute()
+	// Reset all command flags and contexts recursively so state does not leak between test invocations
+	var resetCmd func(c *cobra.Command)
+	resetCmd = func(c *cobra.Command) {
+		c.SetContext(ctx)
+		resetFlag := func(f *pflag.Flag) {
+			f.Changed = false
+			if sv, ok := f.Value.(pflag.SliceValue); ok {
+				_ = sv.Replace(nil)
+			} else {
+				_ = f.Value.Set(f.DefValue)
+			}
+		}
+		c.Flags().VisitAll(resetFlag)
+		c.PersistentFlags().VisitAll(resetFlag)
+		for _, sub := range c.Commands() {
+			resetCmd(sub)
+		}
+	}
+	resetCmd(rootCmd)
+
+	err := rootCmd.ExecuteContext(ctx)
 	return buf.String(), exitCode, err
 }
 
@@ -1036,5 +1052,116 @@ func TestGuideFileAndPathSpecification(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(dir, "Def 3.md")); !os.IsNotExist(statErr) {
 		t.Errorf("expected Def 3.md to be deleted")
+	}
+}
+
+func TestServeCommand(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// 1. Non-existent directory should exit with code 1
+	out, exitCode, _ := executeCommandWithExit("serve", filepath.Join(dir, "nonexistent"), "--offline")
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1 for non-existent path, got %d (out: %s)", exitCode, out)
+	}
+
+	// 2. Non-.kng file should exit with code 1
+	out, exitCode, _ = executeCommandWithExit("serve", filepath.Join(dir, "manifest.yaml"), "--offline")
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1 for non-.kng file, got %d (out: %s)", exitCode, out)
+	}
+
+	// 3. Valid graph directory with short-lived context should start and exit cleanly
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+	defer cancel()
+	rootCmd.SetContext(ctx)
+	defer rootCmd.SetContext(context.Background())
+
+	out, exitCode, err := executeCommandWithExit("serve", dir, "--host", "127.0.0.1", "--port", "0", "--offline")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("expected clean exit for serve command, got code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Serving knowledge graph") {
+		t.Errorf("expected 'Serving knowledge graph' output, got: %s", out)
+	}
+}
+
+func TestPathCommand(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// Link Def 1 as subguide to Desc 1 so there's an active dependency
+	out, exitCode, err := executeCommandWithExit("link", "Desc 1", "--subguide", "Def 1", "--segment", "3-3", "--dir", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("setup link failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+
+	// 1. Target learning path (text)
+	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path Desc 1 failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Learning path for 'Desc 1'") {
+		t.Errorf("expected target header, got: %s", out)
+	}
+	if !strings.Contains(out, "Def 1") || !strings.Contains(out, "Desc 1") {
+		t.Errorf("expected Def 1 and Desc 1 in path, got: %s", out)
+	}
+
+	// 2. Global curriculum (all guides)
+	out, exitCode, err = executeCommandWithExit("path", "--dir", dir)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path --all failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Scope: definition") || !strings.Contains(out, "Scope: description") {
+		t.Errorf("expected scope groupings in global path, got: %s", out)
+	}
+
+	// 3. Format JSON
+	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir, "--format", "json")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path json failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, `"guide_id": "Desc 1"`) || !strings.Contains(out, `"guide_id": "Def 1"`) {
+		t.Errorf("expected JSON output containing guide IDs, got: %s", out)
+	}
+
+	// 4. Format Mermaid
+	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir, "--format", "mermaid")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path mermaid failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "flowchart TD") {
+		t.Errorf("expected Mermaid flowchart output, got: %s", out)
+	}
+
+	// 5. Unlocks mode
+	out, exitCode, err = executeCommandWithExit("path", "Def 1", "--dir", dir, "--unlocks")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path unlocks failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Guides unlocked by 'Def 1'") {
+		t.Errorf("expected unlocks header, got: %s", out)
+	}
+	if !strings.Contains(out, "Desc 1") {
+		t.Errorf("expected unlocked guide Desc 1 in output, got: %s", out)
+	}
+
+	// 6. Save Tour
+	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir, "--save-tour", "Auto Desc Tour")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path --save-tour failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Successfully created tour 'Auto Desc Tour'") {
+		t.Errorf("expected success message for tour creation, got: %s", out)
+	}
+	// Verify tour appears in tour list
+	tourOut, tourCode, tourErr := executeCommandWithExit("tour", "list", "--dir", dir)
+	if tourErr != nil || tourCode != 0 || !strings.Contains(tourOut, "Auto Desc Tour") {
+		t.Errorf("expected tour list to show 'Auto Desc Tour', got code=%d out=%s", tourCode, tourOut)
+	}
+
+	// 7. Non-existent guide should exit with code 1
+	out, exitCode, _ = executeCommandWithExit("path", "NonexistentGuide", "--dir", dir)
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1 for non-existent guide, got %d (out: %s)", exitCode, out)
 	}
 }

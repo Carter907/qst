@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
-	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
@@ -36,86 +34,45 @@ qst unlink "Scanf Function" --prereq "Printf Function"
 # Interactive link removal
 qst unlink "Variables and Assignment" -i`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &unlinkDir)
-		unlinkPrereq = cleanGuideName(unlinkPrereq)
-		unlinkSubguide = cleanGuideName(unlinkSubguide)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := unlinkDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
+		prereq := cleanGuideName(unlinkPrereq)
+		subguide := cleanGuideName(unlinkSubguide)
 
-		currentGuide, _, err := resolveGuide(unlinkDir, guideName)
+		currentGuide, _, err := resolveGuide(dir, guideName)
 		if err != nil {
-			cmd.PrintErrf("Error: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		isPrereqSet := cmd.Flags().Changed("prereq")
 		isSubguideSet := cmd.Flags().Changed("subguide") || cmd.Flags().Changed("sub")
 
-		// Interactive mode
 		if unlinkInteractive || (!isPrereqSet && !isSubguideSet) {
-			var linkOptions []huh.Option[string]
-
-			for _, p := range currentGuide.Metadata.Prerequisites {
-				label := fmt.Sprintf("[Prerequisite] %s", p)
-				val := "prereq:" + p
-				linkOptions = append(linkOptions, huh.NewOption(label, val))
-			}
-
-			for _, s := range currentGuide.Metadata.SubGuides {
-				label := fmt.Sprintf("[Subguide] %s (adherence: %s, segment: %s)", s.Guide, s.Adherence, s.Segment)
-				val := "subguide:" + s.Guide
-				linkOptions = append(linkOptions, huh.NewOption(label, val))
-			}
-
-			if len(linkOptions) == 0 {
-				cmd.Printf("Guide '%s' has no prerequisites or subguides to unlink.\n", guideName)
-				return
-			}
-
-			selected := ""
-			err := huh.NewSelect[string]().
-				Title("Select link to remove").
-				Options(linkOptions...).
-				Value(&selected).
-				Run()
-			if err != nil {
-				cmd.PrintErrf("Unlink aborted: %v\n", err)
-				exitFunc(1)
-				return
-			}
-
-			if strings.HasPrefix(selected, "prereq:") {
-				unlinkPrereq = strings.TrimPrefix(selected, "prereq:")
-				isPrereqSet = true
-			} else if strings.HasPrefix(selected, "subguide:") {
-				unlinkSubguide = strings.TrimPrefix(selected, "subguide:")
-				isSubguideSet = true
+			done, err := promptUnlinkGuide(cmd, guideName, currentGuide, &isPrereqSet, &isSubguideSet, &prereq, &subguide)
+			if err != nil || done {
+				return err
 			}
 		}
 
-		if isPrereqSet && unlinkPrereq != "" {
-			if err := graph.RemovePrerequisite(currentGuide.Path, unlinkPrereq); err != nil {
-				cmd.PrintErrf("Error: %v\n", err)
-				exitFunc(1)
-				return
+		if isPrereqSet && prereq != "" {
+			if err := graph.RemovePrerequisite(currentGuide.Path, prereq); err != nil {
+				return fmt.Errorf("Error: %w", err)
 			}
-			cmd.Printf("Successfully unlinked prerequisite '%s' from '%s'\n", unlinkPrereq, guideName)
-			return
+			cmd.Printf("Successfully unlinked prerequisite '%s' from '%s'\n", prereq, guideName)
+			return nil
 		}
 
-		if isSubguideSet && unlinkSubguide != "" {
-			if err := graph.RemoveSubGuide(currentGuide.Path, unlinkSubguide); err != nil {
-				cmd.PrintErrf("Error: %v\n", err)
-				exitFunc(1)
-				return
+		if isSubguideSet && subguide != "" {
+			if err := graph.RemoveSubGuide(currentGuide.Path, subguide); err != nil {
+				return fmt.Errorf("Error: %w", err)
 			}
-			cmd.Printf("Successfully unlinked subguide '%s' from '%s'\n", unlinkSubguide, guideName)
-			return
+			cmd.Printf("Successfully unlinked subguide '%s' from '%s'\n", subguide, guideName)
+			return nil
 		}
 
-		cmd.PrintErrln("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
-		exitFunc(1)
-	},
+		return fmt.Errorf("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
+	}),
 }
 
 func init() {

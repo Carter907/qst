@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,13 +23,11 @@ qst free my-graph.kng
 qst free my-graph.kng custom_dir
 qst free my-graph.kng -o custom_dir`,
 	Args: cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		inputKng := args[0]
 		ext := filepath.Ext(inputKng)
 		if ext != ".kng" {
-			cmd.PrintErrln("Missing required file extension (.kng)")
-			exitFunc(1)
-			return
+			return fmt.Errorf("Missing required file extension (.kng)")
 		}
 
 		destDir := freeOutput
@@ -40,22 +39,17 @@ qst free my-graph.kng -o custom_dir`,
 			destDir = strings.TrimSuffix(filename, ext)
 		}
 
-		err := os.MkdirAll(destDir, 0o755)
-		if err != nil {
-			cmd.PrintErrf("Error creating directory: %v\n", err)
-			exitFunc(1)
-			return
+		if err := os.MkdirAll(destDir, 0o755); err != nil {
+			return fmt.Errorf("Error creating directory: %w", err)
 		}
 
-		err = graph.UnarchiveGraph(inputKng, destDir)
-		if err != nil {
-			cmd.PrintErrf("Error unarchiving graph: %v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.UnarchiveGraph(inputKng, destDir); err != nil {
+			return fmt.Errorf("Error unarchiving graph: %w", err)
 		}
 
 		cmd.Printf("Successfully unarchived to %s\n", destDir)
-	},
+		return nil
+	}),
 }
 
 func init() {

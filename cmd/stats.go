@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -12,23 +13,20 @@ var statsDir string
 var statsCmd = &cobra.Command{
 	Use:   "stats [directory]",
 	Short: "Display statistics about the knowledge graph",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := statsDir
 		if len(args) > 0 {
-			statsDir = args[0]
+			dir = args[0]
 		}
 
-		config, err := graph.ParseConfig(statsDir)
+		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			cmd.PrintErrf("Error loading config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error loading config: %w", err)
 		}
 
-		guides, err := graph.ParseGraph(statsDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		totalGuides := len(guides)
@@ -65,10 +63,10 @@ var statsCmd = &cobra.Command{
 
 		title := config.Title
 		if title == "" {
-			title = statsDir
+			title = dir
 		}
 
-		cmd.Printf("Graph Statistics: %s (%s)\n", title, statsDir)
+		cmd.Printf("Graph Statistics: %s (%s)\n", title, dir)
 		cmd.Println(strings.Repeat("=", 60))
 
 		// 1. Overview
@@ -173,7 +171,8 @@ var statsCmd = &cobra.Command{
 			cmd.Printf("  Unmapped Lines:        %d\n", totalUnmappedLines)
 			cmd.Printf("  Overlapping Lines:     %d\n", totalOverlappingLines)
 		}
-	},
+		return nil
+	}),
 }
 
 func init() {

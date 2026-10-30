@@ -21,16 +21,14 @@ var listCmd = &cobra.Command{
 	Use:     "list [directory]",
 	Aliases: []string{"ls"},
 	Short:   "List guides in the knowledge graph",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		targetDir := listDir
 		if len(args) > 0 {
 			targetDir = args[0]
 		}
 		guides, err := graph.ParseGraph(targetDir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		hasScopeFilter := cmd.Flags().Changed("scope") && listScope != ""
@@ -66,14 +64,12 @@ var listCmd = &cobra.Command{
 			for _, id := range matchedIDs {
 				cmd.Println(id)
 			}
-			return
+			return nil
 		}
 
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		if _, err := fmt.Fprintln(w, "GUIDE\tSCOPE\tTAGS\tPREREQS\tSUBGUIDES"); err != nil {
-			cmd.PrintErrf("Error writing output: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error writing output: %w", err)
 		}
 
 		for _, id := range matchedIDs {
@@ -89,18 +85,15 @@ var listCmd = &cobra.Command{
 				len(g.Metadata.Prerequisites),
 				len(g.Metadata.SubGuides),
 			); err != nil {
-				cmd.PrintErrf("Error writing output: %v\n", err)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Error writing output: %w", err)
 			}
 		}
 
 		if err := w.Flush(); err != nil {
-			cmd.PrintErrf("Error flushing output: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error flushing output: %w", err)
 		}
-	},
+		return nil
+	}),
 }
 
 func init() {

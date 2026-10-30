@@ -5,7 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
+)
+
+var (
+	createStarter     bool
+	newStrictCoverage bool
 )
 
 // newCmd represents the new command
@@ -21,38 +27,21 @@ qst new
 
 # Create with starter guide
 qst new --starter`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := "."
 		if len(args) != 0 {
 			dir = args[0]
 		}
 
-		err := os.MkdirAll(dir, 0o755)
-		if err != nil {
-			cmd.PrintErrf("Failed to create knowledge graph: %v\n", err)
-			exitFunc(1)
-			return
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("Failed to create knowledge graph: %w", err)
 		}
 
 		if createStarter {
 			starterPath := filepath.Join(dir, "starter.md")
 			if _, err := os.Stat(starterPath); os.IsNotExist(err) {
-				starterContent := `---
-prerequisites: []
-sub_guides: []
-scope: definition
-tags: ["example"]
----
-
-## Starter Guide
-
-This is an example guide. Replace this content with your own knowledge!
-`
-				err = os.WriteFile(starterPath, []byte(starterContent), 0o644)
-				if err != nil {
-					cmd.PrintErrf("Failed to create starter guide: %v\n", err)
-					exitFunc(1)
-					return
+				if err := graph.WriteStarterGuide(starterPath); err != nil {
+					return fmt.Errorf("Failed to create starter guide: %w", err)
 				}
 			} else {
 				cmd.Println("Sample guide already exists, skipping write...")
@@ -61,41 +50,16 @@ This is an example guide. Replace this content with your own knowledge!
 
 		metaFilePath := filepath.Join(dir, "manifest.yaml")
 		if _, err := os.Stat(metaFilePath); os.IsNotExist(err) {
-			metaFileContent := fmt.Sprintf(`title: Your New Knowledge
-description: What can you say about this knowledge?
-scopes:
-  - definition
-  - description
-  - explanation
-  - lesson
-adherences:
-  - strict
-  - detailed
-  - introductory
-  - vague
-relaxed_subguides: false
-require_subguides: true
-strict_coverage: %t
-tours:`, newStrictCoverage)
-
-			err = os.WriteFile(metaFilePath, []byte(metaFileContent), 0o644)
-			if err != nil {
-				cmd.PrintErrf("Failed to write metafile: %v\n", err)
-				exitFunc(1)
-				return
+			if err := graph.UpdateConfig(dir, graph.DefaultManifest(newStrictCoverage)); err != nil {
+				return fmt.Errorf("Failed to write metafile: %w", err)
 			}
-
 		} else {
 			cmd.Println("Metafile already exists, skipping write...")
 		}
 		cmd.Printf("Initialized knowledge graph in %s\n", dir)
-	},
+		return nil
+	}),
 }
-
-var (
-	createStarter     bool
-	newStrictCoverage bool
-)
 
 func init() {
 	rootCmd.AddCommand(newCmd)

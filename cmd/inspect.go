@@ -29,25 +29,22 @@ qst inspect examples/C_programming/Scanf\ Function.md -c
 # Inspect a guide in a specific directory
 qst inspect "Scanf Function" -d examples/C_programming -c`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &inspectDir)
-		runInspect(cmd, guideName, inspectDir, inspectCoverage)
-	},
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := inspectDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
+		return runInspect(cmd, guideName, dir, inspectCoverage)
+	}),
 }
 
-func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage bool) {
+func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage bool) error {
 	guide, _, err := resolveGuide(dir, guideName)
 	if err != nil {
-		cmd.PrintErrf("Error: guide '%s' not found or failed to parse: %v\n", guideName, err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Error: guide '%s' not found or failed to parse: %w", guideName, err)
 	}
 
 	config, err := graph.ParseConfig(dir)
 	if err != nil {
-		cmd.PrintErrf("Failed to load manifest.yaml: %v\n", err)
-		exitFunc(1)
-		return
+		return fmt.Errorf("Failed to load manifest.yaml: %w", err)
 	}
 
 	scopeLevel := ""
@@ -171,6 +168,7 @@ func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage b
 			}
 		}
 	}
+	return nil
 }
 
 func init() {

@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"sort"
+	"fmt"
 	"strings"
 
-	huh "charm.land/huh/v2"
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
@@ -47,39 +46,32 @@ qst link "Variables and Assignment" --preview
 # Interactive link selection
 qst link "Variables and Assignment" -i`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &linkDir)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := linkDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 
-		guides, err := graph.ParseGraph(linkDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		currentGuide, exists := guides[guideName]
 		if !exists {
-			cmd.PrintErrf("Error: guide '%s' not found in graph\n", guideName)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: guide '%s' not found in graph", guideName)
 		}
 
-		config, err := graph.ParseConfig(linkDir)
+		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			cmd.PrintErrf("Failed to load manifest.yaml config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Failed to load manifest.yaml config: %w", err)
 		}
-
-		defer func() {
-			linkPrereqs = nil
-			linkSubguides = nil
-		}()
 
 		isPrereqSet := cmd.Flags().Changed("prereq")
 		isSubguideSet := cmd.Flags().Changed("subguide") || cmd.Flags().Changed("sub")
+		prereqs := append([]string(nil), linkPrereqs...)
+		subguides := append([]string(nil), linkSubguides...)
+		adherence := linkAdherence
+		segment := linkSegment
 
-		// Show preview if requested
 		if linkPreview {
 			cmd.Println("\n" + strings.Repeat("=", 80))
 			cmd.Printf("Body Lines Preview: %s\n", guideName)
@@ -90,242 +82,69 @@ qst link "Variables and Assignment" -i`,
 			}
 			cmd.Println(strings.Repeat("-", 80))
 			if !isPrereqSet && !isSubguideSet && !linkInteractive {
-				return
+				return nil
 			}
 		}
 
-		// Interactive mode
 		if linkInteractive || (!isPrereqSet && !isSubguideSet) {
-			linkType := "subguide"
-			if !isPrereqSet && !isSubguideSet {
-				err := huh.NewSelect[string]().
-					Title("Choose relationship type to link").
-					Options(
-						huh.NewOption("Subguide (hierarchical child)", "subguide"),
-						huh.NewOption("Prerequisite (horizontal dependency)", "prereq"),
-					).
-					Value(&linkType).
-					Run()
-				if err != nil {
-					cmd.PrintErrf("Link aborted: %v\n", err)
-					exitFunc(1)
-					return
-				}
-			} else if isPrereqSet {
-				linkType = "prereq"
-			}
-
-			if linkType == "prereq" {
-				if !isPrereqSet {
-					var candidateOptions []huh.Option[string]
-					var sortedCandidates []string
-					currentScope := currentGuide.Metadata.Scope
-
-					for id, g := range guides {
-						if id == guideName || g.Metadata.Scope != currentScope {
-							continue
-						}
-						alreadyPrereq := false
-						for _, p := range currentGuide.Metadata.Prerequisites {
-							if p == id {
-								alreadyPrereq = true
-								break
-							}
-						}
-						if !alreadyPrereq {
-							sortedCandidates = append(sortedCandidates, id)
-						}
-					}
-					sort.Strings(sortedCandidates)
-					for _, c := range sortedCandidates {
-						candidateOptions = append(candidateOptions, huh.NewOption(c, c))
-					}
-
-					if len(candidateOptions) == 0 {
-						cmd.PrintErrf("No available guides with matching scope '%s' to link as prerequisite.\n", currentScope)
-						exitFunc(1)
-						return
-					}
-
-					selectedPrereq := ""
-					err = huh.NewSelect[string]().
-						Title("Select prerequisite guide").
-						Options(candidateOptions...).
-						Value(&selectedPrereq).
-						Run()
-					if err != nil {
-						cmd.PrintErrf("Link aborted: %v\n", err)
-						exitFunc(1)
-						return
-					}
-					linkPrereqs = []string{selectedPrereq}
-					isPrereqSet = true
-				}
-			} else {
-				// Subguide
-				if !isSubguideSet {
-					parentScopeVal := graph.GetScopeValue(currentGuide.Metadata.Scope, config)
-					var candidateOptions []huh.Option[string]
-					var sortedCandidates []string
-
-					for id, g := range guides {
-						if id == guideName {
-							continue
-						}
-						subScopeVal := graph.GetScopeValue(g.Metadata.Scope, config)
-						if subScopeVal >= parentScopeVal {
-							continue
-						}
-						if !config.RelaxedSubguides && parentScopeVal-subScopeVal != 1 {
-							continue
-						}
-						sortedCandidates = append(sortedCandidates, id)
-					}
-					sort.Strings(sortedCandidates)
-					for _, c := range sortedCandidates {
-						candidateOptions = append(candidateOptions, huh.NewOption(cmdFormatOption(c, guides[c].Metadata.Scope), c))
-					}
-
-					if len(candidateOptions) == 0 {
-						cmd.PrintErrf("No available guides with valid lower scope to link as subguide under '%s'.\n", guideName)
-						exitFunc(1)
-						return
-					}
-
-					selectedSubguide := ""
-					err = huh.NewSelect[string]().
-						Title("Select subguide to link").
-						Options(candidateOptions...).
-						Value(&selectedSubguide).
-						Run()
-					if err != nil {
-						cmd.PrintErrf("Link aborted: %v\n", err)
-						exitFunc(1)
-						return
-					}
-					linkSubguides = []string{selectedSubguide}
-					isSubguideSet = true
-				}
-
-				if !cmd.Flags().Changed("adherence") {
-					var adherenceOptions []huh.Option[string]
-					for _, c := range config.Adherences {
-						adherenceOptions = append(adherenceOptions, huh.NewOption(c, c))
-					}
-					err = huh.NewSelect[string]().
-						Title("Choose adherence").
-						Options(adherenceOptions...).
-						Value(&linkAdherence).
-						Run()
-					if err != nil {
-						cmd.PrintErrf("Link aborted: %v\n", err)
-						exitFunc(1)
-						return
-					}
-				}
-
-				if !cmd.Flags().Changed("segment") {
-					// Display body preview to assist with segment input
-					cmd.Println("\nBody Lines Preview:")
-					bodyLines := strings.Split(currentGuide.Body, "\n")
-					for i, line := range bodyLines {
-						cmd.Printf("[L%3d] %s\n", i+1, line)
-					}
-					cmd.Println()
-
-					err = huh.NewInput().
-						Title("Enter segment range in body (optional)").
-						Placeholder("e.g. 4-4 or 10-20").
-						Value(&linkSegment).
-						Run()
-					if err != nil {
-						cmd.PrintErrf("Link aborted: %v\n", err)
-						exitFunc(1)
-						return
-					}
-				}
+			if err := promptLinkGuide(cmd, guideName, currentGuide, guides, config, &isPrereqSet, &isSubguideSet, &prereqs, &subguides, &adherence, &segment); err != nil {
+				return err
 			}
 		}
 
-		// Handle Prerequisites (batch support)
 		if isPrereqSet {
-			prereqs := parseGuideCSVOrSlice(linkPrereqs)
-			if len(prereqs) == 0 {
-				cmd.PrintErrln("Error: no prerequisite specified")
-				exitFunc(1)
-				return
+			parsedPrereqs := parseGuideCSVOrSlice(prereqs)
+			if len(parsedPrereqs) == 0 {
+				return fmt.Errorf("Error: no prerequisite specified")
 			}
-			for _, prereq := range prereqs {
+			for _, prereq := range parsedPrereqs {
 				if err := graph.ValidatePrerequisiteLink(guides, config, guideName, prereq); err != nil {
-					cmd.PrintErrf("Error: %v\n", err)
-					exitFunc(1)
-					return
+					return fmt.Errorf("Error: %w", err)
 				}
-
 				if err := graph.AddPrerequisite(currentGuide.Path, prereq); err != nil {
-					cmd.PrintErrf("Failed to update guide: %v\n", err)
-					exitFunc(1)
-					return
+					return fmt.Errorf("Failed to update guide: %w", err)
 				}
-
-				// Update local guide state for subsequent validations
 				g := guides[guideName]
 				g.Metadata.Prerequisites = append(g.Metadata.Prerequisites, prereq)
 				guides[guideName] = g
 
 				cmd.Printf("Successfully linked prerequisite '%s' to '%s'\n", prereq, guideName)
 			}
-			return
+			return nil
 		}
 
-		// Handle Subguides (batch support)
 		if isSubguideSet {
-			subguides := parseGuideCSVOrSlice(linkSubguides)
-			if len(subguides) == 0 {
-				cmd.PrintErrln("Error: no subguide specified")
-				exitFunc(1)
-				return
+			parsedSubguides := parseGuideCSVOrSlice(subguides)
+			if len(parsedSubguides) == 0 {
+				return fmt.Errorf("Error: no subguide specified")
 			}
-			if linkAdherence == "" && len(config.Adherences) > 0 {
-				linkAdherence = config.Adherences[0]
+			if adherence == "" && len(config.Adherences) > 0 {
+				adherence = config.Adherences[0]
 			}
 
-			for _, sub := range subguides {
-				if err := graph.ValidateSubGuideLink(guides, config, guideName, sub, linkAdherence, linkSegment); err != nil {
-					cmd.PrintErrf("Error: %v\n", err)
-					exitFunc(1)
-					return
+			for _, sub := range parsedSubguides {
+				if err := graph.ValidateSubGuideLink(guides, config, guideName, sub, adherence, segment); err != nil {
+					return fmt.Errorf("Error: %w", err)
 				}
-
 				newSubguide := graph.SubGuideRelation{
 					Guide:     sub,
-					Adherence: linkAdherence,
-					Segment:   linkSegment,
+					Adherence: adherence,
+					Segment:   segment,
 				}
-
 				if err := graph.UpsertSubGuide(currentGuide.Path, newSubguide); err != nil {
-					cmd.PrintErrf("Failed to update guide: %v\n", err)
-					exitFunc(1)
-					return
+					return fmt.Errorf("Failed to update guide: %w", err)
 				}
-
-				// Update local guide state for subsequent validations
 				g := guides[guideName]
 				g.Metadata.SubGuides = append(g.Metadata.SubGuides, newSubguide)
 				guides[guideName] = g
 
 				cmd.Printf("Successfully linked subguide '%s' to '%s'\n", sub, guideName)
 			}
-			return
+			return nil
 		}
 
-		cmd.PrintErrln("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
-		exitFunc(1)
-	},
-}
-
-func cmdFormatOption(id, scope string) string {
-	return id + " (" + scope + ")"
+		return fmt.Errorf("Error: must specify either --subguide or --prereq, or use -i for interactive mode.")
+	}),
 }
 
 func init() {

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -22,7 +23,7 @@ qst form
 # Specify custom output path
 qst form my_knowledge -o dist/bundle.kng`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := "."
 		if len(args) > 0 {
 			dir = args[0]
@@ -30,30 +31,21 @@ qst form my_knowledge -o dist/bundle.kng`,
 
 		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		config, err := graph.ParseConfig(dir)
 		if err != nil {
-			cmd.PrintErrf("Error loading config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error loading config: %w", err)
 		}
 
-		err = graph.ValidateGraph(guides, config)
-		if err != nil {
-			cmd.PrintErrf("Validation failed:\n%v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.ValidateGraph(guides, config); err != nil {
+			return fmt.Errorf("Validation failed:\n%w", err)
 		}
 
 		absDir, err := filepath.Abs(dir)
 		if err != nil {
-			cmd.PrintErrf("Error resolving path: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error resolving path: %w", err)
 		}
 
 		outPath := formOutput
@@ -62,15 +54,13 @@ qst form my_knowledge -o dist/bundle.kng`,
 			outPath = baseName + ".kng"
 		}
 
-		err = graph.ArchiveGraph(dir, outPath)
-		if err != nil {
-			cmd.PrintErrf("Error archiving graph: %v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.ArchiveGraph(dir, outPath); err != nil {
+			return fmt.Errorf("Error archiving graph: %w", err)
 		}
 
 		cmd.Printf("Successfully packaged %d guides into %s\n", len(guides), outPath)
-	},
+		return nil
+	}),
 }
 
 func init() {

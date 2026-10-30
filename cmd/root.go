@@ -30,6 +30,17 @@ func Root() *cobra.Command {
 	return rootCmd
 }
 
+// runWithExit wraps a command handler returning an error so any returned error is printed
+// to the command's standard error channel and triggers exitFunc(1).
+func runWithExit(fn func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		if err := fn(cmd, args); err != nil {
+			cmd.PrintErrln(err)
+			exitFunc(1)
+		}
+	}
+}
+
 func init() {
 	rootCmd.SetOut(os.Stdout)
 	rootCmd.SetErr(os.Stderr)

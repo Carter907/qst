@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/Carter907/qst/internal/graph"
@@ -25,17 +26,15 @@ qst tour list
 # List tours in specific directory
 qst tour list -d examples/Conditionals`,
 	Args: cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		config, err := graph.ParseConfig(tourDir)
 		if err != nil {
-			cmd.PrintErrf("Failed to load manifest.yaml config: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Failed to load manifest.yaml config: %w", err)
 		}
 
 		if len(config.Tours) == 0 {
 			cmd.Println("No tours defined in manifest.yaml.")
-			return
+			return nil
 		}
 
 		cmd.Printf("Tours (%d):\n", len(config.Tours))
@@ -49,7 +48,8 @@ qst tour list -d examples/Conditionals`,
 				}
 			}
 		}
-	},
+		return nil
+	}),
 }
 
 var tourCreateCmd = &cobra.Command{
@@ -58,20 +58,19 @@ var tourCreateCmd = &cobra.Command{
 	Example: `# Create a new tour
 qst tour create "Core Fundamentals" -d my_graph/`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		tourName := args[0]
 		err := graph.CreateTour(tourDir, graph.TourConfig{
 			Name:   tourName,
 			Guides: []string{},
 		})
 		if err != nil {
-			cmd.PrintErrf("Error creating tour: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error creating tour: %w", err)
 		}
 
 		cmd.Printf("Successfully created tour '%s'\n", tourName)
-	},
+		return nil
+	}),
 }
 
 var tourAddCmd = &cobra.Command{
@@ -84,50 +83,45 @@ qst tour add "Core Fundamentals" "Concept A" "Concept B" -d my_graph/
 qst tour add "Core Fundamentals" "Concept A.md" "Concept B.md" -d my_graph/
 qst tour add "Core Fundamentals" my_graph/Concept\ A.md`,
 	Args: cobra.MinimumNArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		tourName := args[0]
 		rawGuides := args[1:]
+		dir := tourDir
 
 		dirFlag := cmd.Flags().Lookup("dir")
 		if dirFlag == nil || !dirFlag.Changed {
 			for _, g := range rawGuides {
-				dir := filepath.Dir(g)
-				if dir != "." && dir != "" {
-					tourDir = dir
+				gDir := filepath.Dir(g)
+				if gDir != "." && gDir != "" {
+					dir = gDir
 					break
 				}
 			}
 		}
 		guideNames := cleanGuideList(rawGuides)
 
-		guides, err := graph.ParseGraph(tourDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		for _, gName := range guideNames {
 			if _, exists := guides[gName]; !exists {
-				cmd.PrintErrf("Error: guide '%s' not found in graph\n", gName)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Error: guide '%s' not found in graph", gName)
 			}
 		}
 
 		addedCount := 0
 		for _, gName := range guideNames {
-			err := graph.AddGuideToTour(tourDir, tourName, gName)
-			if err != nil {
-				cmd.PrintErrf("Failed to add '%s' to tour '%s': %v\n", gName, tourName, err)
-				exitFunc(1)
-				return
+			if err := graph.AddGuideToTour(dir, tourName, gName); err != nil {
+				return fmt.Errorf("Failed to add '%s' to tour '%s': %w", gName, tourName, err)
 			}
 			addedCount++
 		}
 
 		cmd.Printf("Successfully added %d guide(s) to tour '%s'\n", addedCount, tourName)
-	},
+		return nil
+	}),
 }
 
 var tourRemoveCmd = &cobra.Command{
@@ -140,19 +134,18 @@ qst tour remove "Core Fundamentals" "Concept A" -d my_graph/
 qst tour remove "Core Fundamentals" "Concept A.md" -d my_graph/
 qst tour remove "Core Fundamentals" my_graph/Concept\ A.md`,
 	Args: cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		tourName := args[0]
-		guideName := resolveGuideAndDir(cmd, args[1], &tourDir)
+		dir := tourDir
+		guideName := resolveGuideAndDir(cmd, args[1], &dir)
 
-		err := graph.RemoveGuideFromTour(tourDir, tourName, guideName)
-		if err != nil {
-			cmd.PrintErrf("Error: %v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.RemoveGuideFromTour(dir, tourName, guideName); err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		cmd.Printf("Successfully removed guide '%s' from tour '%s'\n", guideName, tourName)
-	},
+		return nil
+	}),
 }
 
 var tourDeleteCmd = &cobra.Command{
@@ -161,18 +154,16 @@ var tourDeleteCmd = &cobra.Command{
 	Example: `# Delete a tour
 qst tour delete "Core Fundamentals" -d my_graph/`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		tourName := args[0]
 
-		err := graph.DeleteTour(tourDir, tourName)
-		if err != nil {
-			cmd.PrintErrf("Error: %v\n", err)
-			exitFunc(1)
-			return
+		if err := graph.DeleteTour(tourDir, tourName); err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		cmd.Printf("Successfully deleted tour '%s'\n", tourName)
-	},
+		return nil
+	}),
 }
 
 func init() {

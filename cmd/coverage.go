@@ -23,10 +23,11 @@ qst coverage examples/C_programming/The\ Compilation\ Process.md
 # Inspect in specific directory
 qst coverage "The Compilation Process" -d examples/C_programming`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &coverageDir)
-		runInspect(cmd, guideName, coverageDir, true)
-	},
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := coverageDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
+		return runInspect(cmd, guideName, dir, true)
+	}),
 }
 
 func init() {

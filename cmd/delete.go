@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -32,25 +33,22 @@ qst delete "Old Concept" -d my_graph/ --dry-run
 # Using the rm alias
 qst rm "Old Concept"`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		guideName := resolveGuideAndDir(cmd, args[0], &deleteDir)
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
+		dir := deleteDir
+		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 
-		guides, err := graph.ParseGraph(deleteDir)
+		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		targetGuide, exists := guides[guideName]
 		if !exists {
-			cmd.PrintErrf("Error: guide '%s' does not exist in graph\n", guideName)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
 		}
 
 		if deleteDryRun {
-			config, _ := graph.ParseConfig(deleteDir)
+			config, _ := graph.ParseConfig(dir)
 			idx := graph.BuildIndex(guides, config)
 
 			prereqRefs := append([]string(nil), idx.GetDependents(guideName)...)
@@ -75,18 +73,17 @@ qst rm "Old Concept"`,
 			if totalRefs == 0 {
 				cmd.Println("  (No incoming references found)")
 			}
-			return
+			return nil
 		}
 
-		prunedCount, err := graph.DeleteGuide(deleteDir, guideName)
+		prunedCount, err := graph.DeleteGuide(dir, guideName)
 		if err != nil {
-			cmd.PrintErrf("Failed to delete guide '%s': %v\n", guideName, err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Failed to delete guide '%s': %w", guideName, err)
 		}
 
 		cmd.Printf("Successfully deleted guide '%s' and pruned %d references.\n", guideName, prunedCount)
-	},
+		return nil
+	}),
 }
 
 func init() {

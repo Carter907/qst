@@ -3,8 +3,6 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
 	"github.com/Carter907/qst/internal/ssg"
@@ -32,92 +30,45 @@ qst view -g examples/C_programming/Printf\ Function.md
 # Save to a markdown file
 qst view . > graph.md`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := "."
+		targetGuide := viewGuide
 		if len(args) > 0 {
 			dir = args[0]
-		} else if viewGuide != "" {
-			guideDir := filepath.Dir(viewGuide)
+		} else if targetGuide != "" {
+			guideDir := filepath.Dir(targetGuide)
 			if guideDir != "." && guideDir != "" {
 				dir = guideDir
 			}
 		}
-		if viewGuide != "" {
-			viewGuide = cleanGuideName(viewGuide)
+		if targetGuide != "" {
+			targetGuide = cleanGuideName(targetGuide)
 		}
 
 		guides, err := graph.ParseGraph(dir)
 		if err != nil {
-			cmd.PrintErrf("Error parsing graph: %v\n", err)
-			exitFunc(1)
-			return
+			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
-		if viewGuide != "" {
-			if _, exists := guides[viewGuide]; !exists {
-				cmd.PrintErrf("Error: guide '%s' not found in graph\n", viewGuide)
-				exitFunc(1)
-				return
+		if targetGuide != "" {
+			if _, exists := guides[targetGuide]; !exists {
+				return fmt.Errorf("Error: guide '%s' not found in graph", targetGuide)
 			}
 			config, err := graph.ParseConfig(dir)
 			if err != nil {
-				cmd.PrintErrf("Error parsing manifest: %v\n", err)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Error parsing manifest: %w", err)
 			}
-			diag, err := ssg.GenerateGuideMermaidText(viewGuide, guides, config)
+			diag, err := ssg.GenerateGuideMermaidText(targetGuide, guides, config)
 			if err != nil {
-				cmd.PrintErrf("Error generating localized diagram: %v\n", err)
-				exitFunc(1)
-				return
+				return fmt.Errorf("Error generating localized diagram: %w", err)
 			}
 			cmd.Println(diag)
-			return
+			return nil
 		}
 
-		cmd.Println(generateMermaid(guides))
-	},
-}
-
-func generateMermaid(guides map[string]graph.Guide) string {
-	var sb strings.Builder
-	sb.WriteString("```mermaid\ngraph TD\n")
-
-	// Sort guides for deterministic output
-	var ids []string
-	for id := range guides {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-
-	r := strings.NewReplacer("-", "_", " ", "_")
-
-	// Declare all nodes first (ensures nodes with no connections are still visible)
-	for _, id := range ids {
-		cleanID := strings.ToLower(r.Replace(id))
-		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", cleanID, id)
-	}
-
-	// Declare all edges
-	for _, id := range ids {
-		guide := guides[id]
-		cleanID := strings.ToLower(r.Replace(id))
-
-		// Prerequisites (Solid links: Prereq -> Current)
-		for _, prereq := range guide.Metadata.Prerequisites {
-			cleanPrereq := strings.ToLower(r.Replace(prereq))
-			fmt.Fprintf(&sb, "    %s --> %s\n", cleanPrereq, cleanID)
-		}
-
-		// Subguides (Dotted links: Current -> Sub)
-		for _, sub := range guide.Metadata.SubGuides {
-			cleanSub := strings.ToLower(r.Replace(sub.Guide))
-			fmt.Fprintf(&sb, "    %s -.-> %s\n", cleanID, cleanSub)
-		}
-	}
-
-	sb.WriteString("```")
-	return sb.String()
+		cmd.Println(ssg.GenerateGlobalMermaid(guides))
+		return nil
+	}),
 }
 
 func init() {
