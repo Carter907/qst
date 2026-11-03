@@ -1,0 +1,77 @@
+title: qst Architecture and Internals Knowledge Graph
+description: A comprehensive self-documenting knowledge graph detailing the data models, line-preserving parsers, DAG validation algorithms, Goldmark AST transformers, academic static site compiler, live-reloading SSE dev server, and Cobra/Huh CLI architecture of the qst codebase.
+scopes:
+  - primitive
+  - component
+  - subsystem
+  - architecture
+adherences:
+  - strict
+  - detailed
+  - introductory
+  - vague
+relaxed_subguides: false
+require_subguides: true
+strict_coverage: false
+tours:
+  - name: Full Architecture Tour
+    guides:
+      - Guide and Manifest Data Models
+      - Line-Preserving Frontmatter Parser
+      - Three-Color DFS Cycle Detection
+      - Segment Range Parser and Overlap Detector
+      - Inverted Graph Index and Degree Metrics
+      - Deflate Zip Packaging and Zip Slip Guard
+      - Goldmark AST Link and Line Transformers
+      - Localized 1-Hop Mermaid Graph Generator
+      - Vendor Asset Acquisition and Caching
+      - Academic Sidebar and Syllabus Builder
+      - Server-Sent Events Hub and Middleware Injection
+      - Recursive fsnotify Watcher and RWMutex Build Lock
+      - Testable Cobra Output Channels and Exit Interception
+      - Interactive Terminal Forms with Huh
+      - Automated CLI Markdown Documentation Generator
+      - Graph Parsing and Cascading Mutations
+      - Structural Hierarchy and Acyclic Validation
+      - Graph Indexing Analytics and KNG Packaging
+      - Markdown AST Pipeline and Diagram Synthesis
+      - Static Site Compilation and Academic Layout
+      - Live-Reloading Development Server Architecture
+      - CLI Command Architecture and Dual-Mode UX
+      - Graph Inspection Diagnostics and CI Documentation Parity
+      - Knowledge Graph Core Engine
+      - Static Site Compiler and Live Server
+      - CLI and Interactive Tooling Layer
+      - qst System Architecture
+  - name: Graph Engine Deep Dive
+    guides:
+      - Guide and Manifest Data Models
+      - Line-Preserving Frontmatter Parser
+      - Three-Color DFS Cycle Detection
+      - Segment Range Parser and Overlap Detector
+      - Inverted Graph Index and Degree Metrics
+      - Deflate Zip Packaging and Zip Slip Guard
+      - Graph Parsing and Cascading Mutations
+      - Structural Hierarchy and Acyclic Validation
+      - Graph Indexing Analytics and KNG Packaging
+      - Knowledge Graph Core Engine
+  - name: SSG and Live Server Tour
+    guides:
+      - Goldmark AST Link and Line Transformers
+      - Localized 1-Hop Mermaid Graph Generator
+      - Vendor Asset Acquisition and Caching
+      - Academic Sidebar and Syllabus Builder
+      - Server-Sent Events Hub and Middleware Injection
+      - Recursive fsnotify Watcher and RWMutex Build Lock
+      - Markdown AST Pipeline and Diagram Synthesis
+      - Static Site Compilation and Academic Layout
+      - Live-Reloading Development Server Architecture
+      - Static Site Compiler and Live Server
+  - name: CLI and Contributor Workflow Tour
+    guides:
+      - Testable Cobra Output Channels and Exit Interception
+      - Interactive Terminal Forms with Huh
+      - Automated CLI Markdown Documentation Generator
+      - CLI Command Architecture and Dual-Mode UX
+      - Graph Inspection Diagnostics and CI Documentation Parity
+      - CLI and Interactive Tooling Layer
