@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Carter907/qst/internal/graph"
+	"github.com/yuin/goldmark/parser"
 )
 
 //go:embed templates/*
@@ -298,8 +299,46 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			parentGuides = append(parentGuides, ref)
 		}
 
+		pc := parser.NewContext()
+		var segmentList []SegmentInfo
+		for _, s := range gf.guide.Metadata.SubGuides {
+			if s.Segment == "" {
+				continue
+			}
+			ranges, err := graph.ParseSegments(s.Segment)
+			if err != nil {
+				continue
+			}
+			subTitle := s.Guide
+			subURL := ""
+			if target, ok := filesByID[s.Guide]; ok {
+				subTitle = target.guide.ID
+				subURL = relURL(gf.outRelPath, target.outRelPath)
+			}
+			for _, r := range ranges {
+				rangeStr := fmt.Sprintf("lines %d–%d", r[0], r[1])
+				if r[0] == r[1] {
+					rangeStr = fmt.Sprintf("line %d", r[0])
+				}
+				segmentList = append(segmentList, SegmentInfo{
+					GuideID:   s.Guide,
+					Title:     subTitle,
+					URL:       subURL,
+					Adherence: s.Adherence,
+					Segment:   s.Segment,
+					RangeStr:  rangeStr,
+					StartLine: r[0],
+					EndLine:   r[1],
+				})
+			}
+		}
+		sort.Slice(segmentList, func(i, j int) bool {
+			return segmentList[i].StartLine < segmentList[j].StartLine
+		})
+		pc.Set(SubGuidesContextKey, segmentList)
+
 		var buf bytes.Buffer
-		if convErr := md.Convert([]byte(gf.guide.Body), &buf); convErr != nil {
+		if convErr := md.Convert([]byte(gf.guide.Body), &buf, parser.WithContext(pc)); convErr != nil {
 			return convErr
 		}
 

@@ -2,6 +2,7 @@ package ssg
 
 import (
 	"fmt"
+	"html"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/renderer/html"
+	htmlRenderer "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -64,7 +65,7 @@ func (n *LineNumNode) Dump(source []byte, level int) {
 	_ = level
 }
 
-// LineNumRenderer renders LineNumNode elements as HTML span line markers.
+// LineNumRenderer renders LineNumNode elements as invisible HTML span line anchors.
 type LineNumRenderer struct{}
 
 func (r *LineNumRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
@@ -74,11 +75,235 @@ func (r *LineNumRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer)
 func (r *LineNumRenderer) renderLineNum(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		ln := node.(*LineNumNode)
-		if _, err := fmt.Fprintf(w, `<span class="line-marker" id="L%d" data-line="%d"><span class="line-num">%d</span></span>`, ln.Line, ln.Line, ln.Line); err != nil {
+		if _, err := fmt.Fprintf(w, `<span class="line-marker" id="L%d" data-line="%d"></span>`, ln.Line, ln.Line); err != nil {
 			return ast.WalkStop, err
 		}
 	}
 	return ast.WalkContinue, nil
+}
+
+// SegmentInfo represents contextual metadata for a sub-guide segment citation.
+type SegmentInfo struct {
+	GuideID   string
+	Title     string
+	URL       string
+	Adherence string
+	Segment   string
+	RangeStr  string
+	StartLine int
+	EndLine   int
+}
+
+// SubGuidesContextKey is the Goldmark parser.Context key for passing segment metadata.
+var SubGuidesContextKey = parser.NewContextKey()
+
+// SegmentBlockNode represents a container block wrapping the content of a cited sub-guide segment.
+type SegmentBlockNode struct {
+	ast.BaseBlock
+	GuideID   string
+	Title     string
+	URL       string
+	Adherence string
+	RangeStr  string
+	StartLine int
+	EndLine   int
+}
+
+// KindSegmentBlock is the Goldmark NodeKind for segment blocks.
+var KindSegmentBlock = ast.NewNodeKind("SegmentBlock")
+
+func (n *SegmentBlockNode) Kind() ast.NodeKind {
+	return KindSegmentBlock
+}
+
+func (n *SegmentBlockNode) Dump(source []byte, level int) {
+	_ = level
+}
+
+// SegmentRenderer renders SegmentBlockNode elements as HTML section with header chips.
+type SegmentRenderer struct{}
+
+func (r *SegmentRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindSegmentBlock, r.renderSegment)
+}
+
+func (r *SegmentRenderer) renderSegment(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	n := node.(*SegmentBlockNode)
+	if entering {
+		var titleHTML string
+		if n.URL != "" {
+			titleHTML = fmt.Sprintf(`<a href="%s" class="segment-chip-title">%s</a>`, html.EscapeString(n.URL), html.EscapeString(n.Title))
+		} else {
+			titleHTML = fmt.Sprintf(`<span class="segment-chip-title">%s</span>`, html.EscapeString(n.Title))
+		}
+
+		var adherenceHTML string
+		if n.Adherence != "" {
+			adherenceHTML = fmt.Sprintf(`<span class="segment-chip-badge segment-chip-adherence">%s</span>`, html.EscapeString(n.Adherence))
+		}
+
+		var rangeHTML string
+		if n.RangeStr != "" {
+			rangeHTML = fmt.Sprintf(`<span class="segment-chip-badge segment-chip-range">%s</span>`, html.EscapeString(n.RangeStr))
+		}
+
+		if _, err := fmt.Fprintf(w, `<section class="segment-section" data-segment="%d-%d">
+  <div class="segment-callout" id="segment-L%d">
+    <div class="segment-chip">
+      <span class="segment-chip-icon">↳</span>
+      <span class="segment-chip-label">Sub-guide:</span>
+      %s
+      %s
+      %s
+    </div>
+  </div>
+  <div class="segment-body">
+`, n.StartLine, n.EndLine, n.StartLine, titleHTML, adherenceHTML, rangeHTML); err != nil {
+			return ast.WalkStop, err
+		}
+	} else {
+		if _, err := fmt.Fprint(w, `  </div>
+</section>
+`); err != nil {
+			return ast.WalkStop, err
+		}
+	}
+	return ast.WalkContinue, nil
+}
+
+func getBlockLines(n ast.Node, getLine func(int) int) (int, int) {
+	start := -1
+	end := -1
+	if lines := n.Lines(); lines != nil && lines.Len() > 0 {
+		s := getLine(lines.At(0).Start)
+		e := getLine(lines.At(lines.Len() - 1).Stop)
+		if start == -1 || s < start {
+			start = s
+		}
+		if e > end {
+			end = e
+		}
+	}
+	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if t, ok := c.(*ast.Text); ok {
+			s := getLine(t.Segment.Start)
+			e := getLine(t.Segment.Stop)
+			if start == -1 || s < start {
+				start = s
+			}
+			if e > end {
+				end = e
+			}
+		} else if cb, ok := c.(*ast.FencedCodeBlock); ok {
+			lines := cb.Lines()
+			if lines != nil && lines.Len() > 0 {
+				s := getLine(lines.At(0).Start) - 1
+				if s <= 0 {
+					s = 1
+				}
+				e := getLine(lines.At(lines.Len() - 1).Stop)
+				if start == -1 || s < start {
+					start = s
+				}
+				if e > end {
+					end = e
+				}
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	if end < start {
+		end = start
+	}
+	return start, end
+}
+
+type segmentASTTransformer struct{}
+
+func (st *segmentASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
+	val := pc.Get(SubGuidesContextKey)
+	if val == nil {
+		return
+	}
+	segments, ok := val.([]SegmentInfo)
+	if !ok || len(segments) == 0 {
+		return
+	}
+
+	src := reader.Source()
+	if len(src) == 0 {
+		return
+	}
+
+	lineStarts := []int{0}
+	for i, b := range src {
+		if b == '\n' {
+			lineStarts = append(lineStarts, i+1)
+		}
+	}
+
+	getLine := func(pos int) int {
+		return sort.Search(len(lineStarts), func(i int) bool {
+			return lineStarts[i] > pos
+		})
+	}
+
+	type blockLines struct {
+		node  ast.Node
+		start int
+		end   int
+	}
+
+	var blocks []blockLines
+	for c := node.FirstChild(); c != nil; c = c.NextSibling() {
+		start, end := getBlockLines(c, getLine)
+		if start > 0 {
+			blocks = append(blocks, blockLines{node: c, start: start, end: end})
+		}
+	}
+
+	if len(blocks) == 0 {
+		return
+	}
+
+	for _, seg := range segments {
+		var matched []ast.Node
+		for _, b := range blocks {
+			if b.start >= seg.StartLine && b.start <= seg.EndLine {
+				matched = append(matched, b.node)
+			}
+		}
+
+		if len(matched) == 0 {
+			continue
+		}
+
+		firstMatched := matched[0]
+		if firstMatched.Parent() != node {
+			continue
+		}
+
+		segBlock := &SegmentBlockNode{
+			GuideID:   seg.GuideID,
+			Title:     seg.Title,
+			URL:       seg.URL,
+			Adherence: seg.Adherence,
+			RangeStr:  seg.RangeStr,
+			StartLine: seg.StartLine,
+			EndLine:   seg.EndLine,
+		}
+
+		node.InsertBefore(node, firstMatched, segBlock)
+		for _, m := range matched {
+			if m.Parent() == node {
+				node.RemoveChild(node, m)
+				segBlock.AppendChild(segBlock, m)
+			}
+		}
+	}
 }
 
 type lineASTTransformer struct{}
@@ -141,7 +366,7 @@ func (lt *lineASTTransformer) Transform(node *ast.Document, reader text.Reader, 
 }
 
 // newMarkdownParser creates a preconfigured Goldmark Markdown parser with academic styling,
-// mathjax formula support, syntax highlighting, link rewrites, and line numbering.
+// mathjax formula support, syntax highlighting, link rewrites, segment callouts, and line anchors.
 func newMarkdownParser() goldmark.Markdown {
 	return goldmark.New(
 		goldmark.WithExtensions(
@@ -156,15 +381,17 @@ func newMarkdownParser() goldmark.Markdown {
 			parser.WithAutoHeadingID(),
 			parser.WithASTTransformers(
 				util.Prioritized(&linkASTTransformer{}, 100),
+				util.Prioritized(&segmentASTTransformer{}, 150),
 				util.Prioritized(&lineASTTransformer{}, 200),
 			),
 		),
 		goldmark.WithRendererOptions(
 			renderer.WithNodeRenderers(
+				util.Prioritized(&SegmentRenderer{}, 400),
 				util.Prioritized(&LineNumRenderer{}, 500),
 			),
-			html.WithHardWraps(),
-			html.WithUnsafe(),
+			htmlRenderer.WithHardWraps(),
+			htmlRenderer.WithUnsafe(),
 		),
 	)
 }

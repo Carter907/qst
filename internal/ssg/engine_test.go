@@ -620,3 +620,94 @@ Advanced text.
 	}
 }
 
+func TestBuildSiteSubguideSegments(t *testing.T) {
+	tmpDir := t.TempDir()
+	sourceDir := filepath.Join(tmpDir, "source")
+	outDir := filepath.Join(tmpDir, "public")
+
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("Failed to create source dirs: %v", err)
+	}
+
+	manifestContent := `title: Segment Test
+scopes:
+  - definition
+  - lesson
+adherences:
+  - strict
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "manifest.yaml"), []byte(manifestContent), 0o644); err != nil {
+		t.Fatalf("Failed to write manifest: %v", err)
+	}
+
+	childContent := `---
+scope: definition
+---
+# Child Concept
+Detailed child text.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "ChildConcept.md"), []byte(childContent), 0o644); err != nil {
+		t.Fatalf("Failed to write ChildConcept.md: %v", err)
+	}
+
+	parentContent := `---
+scope: lesson
+sub_guides:
+  - guide: ChildConcept
+    adherence: strict
+    segment: 2-3
+---
+# Parent Lesson
+
+## Introduction to Child
+Here is the text relating to the child concept.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "ParentLesson.md"), []byte(parentContent), 0o644); err != nil {
+		t.Fatalf("Failed to write ParentLesson.md: %v", err)
+	}
+
+	if err := BuildSite(sourceDir, outDir); err != nil {
+		t.Fatalf("BuildSite failed: %v", err)
+	}
+
+	parentBytes, err := os.ReadFile(filepath.Join(outDir, "ParentLesson.html"))
+	if err != nil {
+		t.Fatalf("Failed to read ParentLesson.html: %v", err)
+	}
+	parentHTML := string(parentBytes)
+
+	// Verify segment header chip and accent wrapper
+	if !strings.Contains(parentHTML, "segment-section") {
+		t.Errorf("ParentLesson.html missing segment-section container")
+	}
+	if !strings.Contains(parentHTML, "segment-callout") {
+		t.Errorf("ParentLesson.html missing segment-callout")
+	}
+	if !strings.Contains(parentHTML, "segment-chip") {
+		t.Errorf("ParentLesson.html missing segment-chip")
+	}
+	if !strings.Contains(parentHTML, "ChildConcept.html") {
+		t.Errorf("ParentLesson.html missing link to ChildConcept.html in segment chip")
+	}
+	if !strings.Contains(parentHTML, "ChildConcept") {
+		t.Errorf("ParentLesson.html missing ChildConcept title in segment chip")
+	}
+	if !strings.Contains(parentHTML, "strict") {
+		t.Errorf("ParentLesson.html missing adherence badge in segment chip")
+	}
+	if !strings.Contains(parentHTML, "lines 2–3") {
+		t.Errorf("ParentLesson.html missing line range badge in segment chip")
+	}
+	if !strings.Contains(parentHTML, "segment-body") {
+		t.Errorf("ParentLesson.html missing segment-body")
+	}
+
+	// Verify raw line numbers are removed, while anchor spans are preserved
+	if strings.Contains(parentHTML, "line-num") {
+		t.Errorf("ParentLesson.html should not contain line-num elements (raw gutter line numbers)")
+	}
+	if !strings.Contains(parentHTML, `class="line-marker" id="L`) {
+		t.Errorf("ParentLesson.html missing anchor line-marker spans for deep linking")
+	}
+}
+

@@ -354,34 +354,103 @@ tr:nth-child(even) td {
   color: #aaaaaa;
 }
 
-/* Guide Body with Dedicated Gutter and Hairline Divider */
+/* Guide Body with Clean Reading Margins */
 .guide-body {
   position: relative;
   margin-top: 24px;
-  margin-left: 54px;
-  padding-left: 20px;
-  border-left: 1px solid #e8e8e8;
 }
 
 .line-marker {
-  position: static;
+  position: relative;
   display: inline;
 }
 
-.line-marker .line-num {
-  position: absolute;
-  left: -54px;
-  width: 36px;
-  text-align: right;
-  font-family:
-    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  font-size: 0.7rem;
-  font-weight: 400;
-  line-height: inherit;
-  color: #9e9e9e;
-  user-select: none;
+/* Sub-guide Segment Section & Header Chip */
+.segment-section {
+  margin: 28px 0;
+}
+
+.segment-callout {
+  margin-bottom: 12px;
+}
+
+.segment-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.segment-chip-icon {
+  color: #1a568c;
+  font-weight: 700;
+  font-size: 0.95em;
+}
+
+.segment-chip-label {
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.segment-chip-title {
+  font-weight: 600;
+  color: #1a568c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.segment-chip-title:hover {
+  color: #0d3358;
+}
+
+.segment-chip-badge {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 3px;
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
+}
+
+.segment-chip-adherence {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-variant: small-caps;
+  text-transform: lowercase;
+}
+
+.segment-chip-range {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Cited text block framed with 2.5px left accent border */
+.segment-body {
+  border-left: 2.5px solid #1a568c;
+  padding-left: 18px;
+  margin-left: 2px;
+}
+
+.segment-section:target .segment-body,
+.segment-callout:target + .segment-body {
+  border-left-color: #0d3358;
+}
+
+.segment-callout:target .segment-chip {
+  border-color: #1a568c;
+  background-color: #f0f7ff;
 }
 
 /* Guide Appendix (References & Relations) */
