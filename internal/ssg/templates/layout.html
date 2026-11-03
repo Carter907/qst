@@ -119,7 +119,12 @@
     <script src="{{ .RelativeRoot }}assets/vendor/mermaid/mermaid.min.js"></script>
     <script>
       if (typeof mermaid !== "undefined") {
-        mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "neutral",
+          securityLevel: "loose",
+          flowchart: { htmlLabels: true }
+        });
 
         const renderMermaid = () => {
           const blocks = document.querySelectorAll("pre code.language-mermaid");
@@ -127,7 +132,11 @@
             const pre = block.parentElement;
             const container = document.createElement("div");
             container.className = "mermaid";
-            container.textContent = block.textContent;
+            const clone = block.cloneNode(true);
+            clone.querySelectorAll("br").forEach((br) => {
+              br.parentNode.replaceChild(document.createTextNode("<br/>"), br);
+            });
+            container.textContent = clone.textContent;
             pre.parentNode.replaceChild(container, pre);
           });
           if (document.querySelectorAll(".mermaid").length > 0) {
