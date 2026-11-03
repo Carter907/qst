@@ -122,6 +122,18 @@ func TestGenerateGuideMermaid(t *testing.T) {
 	if leafDiag != "" {
 		t.Errorf("expected empty string for leaf guide with no connections, got:\n%s", leafDiag)
 	}
+
+	// 3. Foundational guide with downstream connections
+	foundationalDiag := generateGuideMermaid(guideSub, manifest, filesByID)
+	if !strings.HasPrefix(foundationalDiag, "graph LR\n") {
+		t.Fatalf("expected graph LR prefix for foundational guide with dependents, got:\n%s", foundationalDiag)
+	}
+	if !strings.Contains(foundationalDiag, `sub_definition["Definition: Sub Definition"]`) {
+		t.Errorf("expected sub definition node in foundational diagram, got:\n%s", foundationalDiag)
+	}
+	if !strings.Contains(foundationalDiag, "current_lesson -.-> sub_definition") {
+		t.Errorf("expected parent decomposition edge in foundational diagram, got:\n%s", foundationalDiag)
+	}
 }
 
 func TestGenerateGuideMermaidText(t *testing.T) {

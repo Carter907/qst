@@ -528,8 +528,17 @@ Advanced text.
 	if !strings.Contains(baseHTML, "Foundational guide — no prior prerequisites required.") {
 		t.Errorf("BaseConcept.html missing foundational guide notice text")
 	}
-	if strings.Contains(baseHTML, "appendix-path-table") {
-		t.Errorf("BaseConcept.html should not contain appendix-path-table")
+	if !strings.Contains(baseHTML, "Subsequent Progression &amp; Unlocked Guides") && !strings.Contains(baseHTML, "Subsequent Progression & Unlocked Guides") {
+		t.Errorf("BaseConcept.html missing subsequent progression section")
+	}
+	if !strings.Contains(baseHTML, "href=\"intermediate/IntermediateConcept.html\"") {
+		t.Errorf("BaseConcept.html missing unlocked link to intermediate/IntermediateConcept.html")
+	}
+	if !strings.Contains(baseHTML, "href=\"AdvancedConcept.html\"") {
+		t.Errorf("BaseConcept.html missing unlocked link to AdvancedConcept.html")
+	}
+	if !strings.Contains(baseHTML, "<figure class=\"appendix-figure\">") {
+		t.Errorf("BaseConcept.html missing forward localized concept horizon figure")
 	}
 
 	// 2. Verify downstream guide has ordered topological path table
@@ -553,6 +562,9 @@ Advanced text.
 	}
 	if !strings.Contains(advHTML, "(current guide)") {
 		t.Errorf("AdvancedConcept.html missing (current guide) label")
+	}
+	if !strings.Contains(advHTML, "Terminal guide — highest-level concept; unlocks no subsequent guides.") {
+		t.Errorf("AdvancedConcept.html missing terminal guide notice")
 	}
 	if !strings.Contains(advHTML, "definition") || !strings.Contains(advHTML, "explanation") {
 		t.Errorf("AdvancedConcept.html missing scope badges in path table")

@@ -46,6 +46,8 @@ type MermaidOptions struct {
 	MarkdownWrap     bool
 	RequireNeighbors bool
 	ClickURLFunc     func(guideID string) string // if non-nil, emits click directives
+	Dependents       []string
+	ParentGuides     []string
 }
 
 // buildMermaidNodeIDs maps a sorted slice of guide IDs to unique, collision-free Mermaid node identifiers.
@@ -121,11 +123,12 @@ func GenerateGlobalMermaid(guides map[string]graph.Guide) string {
 	return sb.String()
 }
 
-// BuildGuideMermaid generates a localized forward-only 1-hop Mermaid diagram for a guide.
+// BuildGuideMermaid generates a localized 1-hop Mermaid diagram for a guide.
 func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts MermaidOptions) string {
 	prereqs := guide.Metadata.Prerequisites
 	subguides := guide.Metadata.SubGuides
-	if opts.RequireNeighbors && len(prereqs) == 0 && len(subguides) == 0 {
+	isFoundational := len(prereqs) == 0 && len(subguides) == 0
+	if opts.RequireNeighbors && isFoundational && len(opts.Dependents) == 0 && len(opts.ParentGuides) == 0 {
 		return ""
 	}
 
@@ -135,7 +138,7 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 	}
 	sb.WriteString("graph LR\n")
 
-	// 1. Collect all unique guide IDs in this forward-only 1-hop horizon
+	// 1. Collect all unique guide IDs in this localized 1-hop horizon
 	seen := make(map[string]bool)
 	seen[guide.ID] = true
 	for _, p := range prereqs {
@@ -143,6 +146,14 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 	}
 	for _, s := range subguides {
 		seen[s.Guide] = true
+	}
+	if isFoundational {
+		for _, d := range opts.Dependents {
+			seen[d] = true
+		}
+		for _, p := range opts.ParentGuides {
+			seen[p] = true
+		}
 	}
 
 	var ids []string
@@ -217,6 +228,42 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 		sb.WriteString("\n")
 	}
 
+	if isFoundational {
+		var depEdges []string
+		for _, dep := range opts.Dependents {
+			dNodeID, exists := nodeIDs[dep]
+			if exists {
+				edgeKey := fmt.Sprintf("%s-->%s", currentNodeID, dNodeID)
+				if !seenEdges[edgeKey] {
+					seenEdges[edgeKey] = true
+					depEdges = append(depEdges, fmt.Sprintf("    %s --> %s", currentNodeID, dNodeID))
+				}
+			}
+		}
+		sort.Strings(depEdges)
+		for _, edge := range depEdges {
+			sb.WriteString(edge)
+			sb.WriteString("\n")
+		}
+
+		var parentEdges []string
+		for _, p := range opts.ParentGuides {
+			pNodeID, exists := nodeIDs[p]
+			if exists {
+				edgeKey := fmt.Sprintf("%s-.->%s", pNodeID, currentNodeID)
+				if !seenEdges[edgeKey] {
+					seenEdges[edgeKey] = true
+					parentEdges = append(parentEdges, fmt.Sprintf("    %s -.-> %s", pNodeID, currentNodeID))
+				}
+			}
+		}
+		sort.Strings(parentEdges)
+		for _, edge := range parentEdges {
+			sb.WriteString(edge)
+			sb.WriteString("\n")
+		}
+	}
+
 	// 5. Click directives for interactive navigation
 	if opts.ClickURLFunc != nil {
 		var clickLines []string
@@ -256,10 +303,11 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 }
 
 // generateGuideMermaid produces a Mermaid diagram representing the localized
-// forward-only 1-hop neighborhood for a specific guide (the guide itself,
-// its prerequisites, and its subguides) in an open monochrome academic LR layout.
+// 1-hop neighborhood for a specific guide in an open monochrome academic LR layout.
+// For foundational guides without incoming prerequisites or subguides, outgoing
+// dependents and parent guides are rendered to provide forward navigation.
 // Neighbor nodes include clickable hyperlinks to their respective guide pages.
-func generateGuideMermaid(currentGF *guideFile, config graph.Manifest, filesByID map[string]*guideFile) string {
+func generateGuideMermaid(currentGF *guideFile, config graph.Manifest, filesByID map[string]*guideFile, graphIdx ...*graph.GraphIndex) string {
 	if currentGF == nil {
 		return ""
 	}
@@ -275,10 +323,29 @@ func generateGuideMermaid(currentGF *guideFile, config graph.Manifest, filesByID
 		}
 		return ""
 	}
+
+	var depIDs, parentIDs []string
+	if len(graphIdx) > 0 && graphIdx[0] != nil {
+		depIDs = graphIdx[0].GetDependents(currentGF.guide.ID)
+		parentIDs = graphIdx[0].GetParentGuides(currentGF.guide.ID)
+	} else if len(filesByID) > 0 {
+		guidesMap := make(map[string]graph.Guide, len(filesByID))
+		for id, gf := range filesByID {
+			if gf != nil {
+				guidesMap[id] = gf.guide
+			}
+		}
+		idx := graph.BuildIndex(guidesMap, config)
+		depIDs = idx.GetDependents(currentGF.guide.ID)
+		parentIDs = idx.GetParentGuides(currentGF.guide.ID)
+	}
+
 	return BuildGuideMermaid(currentGF.guide, getScope, MermaidOptions{
 		MarkdownWrap:     false,
 		RequireNeighbors: true,
 		ClickURLFunc:     getUrl,
+		Dependents:       depIDs,
+		ParentGuides:     parentIDs,
 	})
 }
 
@@ -295,8 +362,11 @@ func GenerateGuideMermaidText(guideID string, guides map[string]graph.Guide, con
 		}
 		return ""
 	}
+	idx := graph.BuildIndex(guides, config)
 	return BuildGuideMermaid(guide, getScope, MermaidOptions{
 		MarkdownWrap:     true,
 		RequireNeighbors: false,
+		Dependents:       idx.GetDependents(guideID),
+		ParentGuides:     idx.GetParentGuides(guideID),
 	}), nil
 }
