@@ -24,7 +24,7 @@ var tourListCmd = &cobra.Command{
 qst tour list
 
 # List tours in specific directory
-qst tour list -d examples/Conditionals`,
+qst tour list -d examples/C_programming`,
 	Args: cobra.NoArgs,
 	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		config, err := graph.ParseConfig(tourDir)
