@@ -1,6 +1,7 @@
 package ssg
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -449,6 +450,161 @@ func TestBuildSyllabusScopes(t *testing.T) {
 	defGuide := sections[2].Guides[0]
 	if defGuide.Title != "Def 1" || len(defGuide.Prerequisites) != 0 {
 		t.Errorf("unexpected Def 1 ref: %+v", defGuide)
+	}
+}
+
+func TestBuildSiteLearningPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	sourceDir := filepath.Join(tmpDir, "source")
+	outDir := filepath.Join(tmpDir, "public")
+
+	if err := os.MkdirAll(filepath.Join(sourceDir, "intermediate"), 0o755); err != nil {
+		t.Fatalf("Failed to create source dirs: %v", err)
+	}
+
+	manifestContent := `title: Learning Path Test
+scopes:
+  - definition
+  - explanation
+  - application
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "manifest.yaml"), []byte(manifestContent), 0o644); err != nil {
+		t.Fatalf("Failed to write manifest: %v", err)
+	}
+
+	baseContent := `---
+scope: definition
+tags:
+  - base
+---
+# Base Concept
+Foundational text.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "BaseConcept.md"), []byte(baseContent), 0o644); err != nil {
+		t.Fatalf("Failed to write BaseConcept.md: %v", err)
+	}
+
+	interContent := `---
+sub_guides:
+  - guide: BaseConcept
+scope: explanation
+tags:
+  - mid
+---
+# Intermediate Concept
+Middle text.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "intermediate", "IntermediateConcept.md"), []byte(interContent), 0o644); err != nil {
+		t.Fatalf("Failed to write IntermediateConcept.md: %v", err)
+	}
+
+	advContent := `---
+sub_guides:
+  - guide: IntermediateConcept
+scope: application
+tags:
+  - adv
+---
+# Advanced Concept
+Advanced text.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "AdvancedConcept.md"), []byte(advContent), 0o644); err != nil {
+		t.Fatalf("Failed to write AdvancedConcept.md: %v", err)
+	}
+
+	if err := BuildSite(sourceDir, outDir); err != nil {
+		t.Fatalf("BuildSite failed: %v", err)
+	}
+
+	// 1. Verify foundational guide has notice
+	baseBytes, err := os.ReadFile(filepath.Join(outDir, "BaseConcept.html"))
+	if err != nil {
+		t.Fatalf("Failed to read BaseConcept.html: %v", err)
+	}
+	baseHTML := string(baseBytes)
+	if !strings.Contains(baseHTML, "appendix-path-notice") {
+		t.Errorf("BaseConcept.html should contain appendix-path-notice")
+	}
+	if !strings.Contains(baseHTML, "Foundational guide — no prior prerequisites required.") {
+		t.Errorf("BaseConcept.html missing foundational guide notice text")
+	}
+	if strings.Contains(baseHTML, "appendix-path-table") {
+		t.Errorf("BaseConcept.html should not contain appendix-path-table")
+	}
+
+	// 2. Verify downstream guide has ordered topological path table
+	advBytes, err := os.ReadFile(filepath.Join(outDir, "AdvancedConcept.html"))
+	if err != nil {
+		t.Fatalf("Failed to read AdvancedConcept.html: %v", err)
+	}
+	advHTML := string(advBytes)
+
+	if !strings.Contains(advHTML, "appendix-path-table") {
+		t.Errorf("AdvancedConcept.html missing appendix-path-table")
+	}
+	if !strings.Contains(advHTML, "href=\"BaseConcept.html\"") {
+		t.Errorf("AdvancedConcept.html missing link to BaseConcept.html")
+	}
+	if !strings.Contains(advHTML, "href=\"intermediate/IntermediateConcept.html\"") {
+		t.Errorf("AdvancedConcept.html missing link to intermediate/IntermediateConcept.html")
+	}
+	if !strings.Contains(advHTML, "path-current-step") {
+		t.Errorf("AdvancedConcept.html missing path-current-step class")
+	}
+	if !strings.Contains(advHTML, "(current guide)") {
+		t.Errorf("AdvancedConcept.html missing (current guide) label")
+	}
+	if !strings.Contains(advHTML, "definition") || !strings.Contains(advHTML, "explanation") {
+		t.Errorf("AdvancedConcept.html missing scope badges in path table")
+	}
+
+	// Verify step ordering: BaseConcept -> IntermediateConcept -> AdvancedConcept
+	posBase := strings.Index(advHTML, "BaseConcept.html")
+	posMid := strings.Index(advHTML, "intermediate/IntermediateConcept.html")
+	posAdv := strings.Index(advHTML, "AdvancedConcept</strong>")
+	if posBase == -1 || posMid == -1 || posAdv == -1 {
+		t.Fatalf("Failed to locate step links in AdvancedConcept.html (posBase=%d, posMid=%d, posAdv=%d)", posBase, posMid, posAdv)
+	}
+	if !(posBase < posMid && posMid < posAdv) {
+		t.Errorf("Expected topological sequence Base < Mid < Adv, but got posBase=%d, posMid=%d, posAdv=%d", posBase, posMid, posAdv)
+	}
+
+	// Localized Mermaid diagram should also be present below the table
+	if !strings.Contains(advHTML, "<figure class=\"appendix-figure\">") {
+		t.Errorf("AdvancedConcept.html missing localized concept horizon figure")
+	}
+
+	// 3. Verify resilient warning on graph cycle
+	cycleDir := filepath.Join(tmpDir, "cycle_src")
+	cycleOut := filepath.Join(tmpDir, "cycle_out")
+	if err := os.MkdirAll(cycleDir, 0o755); err != nil {
+		t.Fatalf("Failed to create cycle dir: %v", err)
+	}
+	_ = os.WriteFile(filepath.Join(cycleDir, "manifest.yaml"), []byte("title: Cycle\nscopes: [def]\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(cycleDir, "CycleA.md"), []byte("---\nscope: def\nprerequisites: [CycleB]\n---\n# CycleA\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(cycleDir, "CycleB.md"), []byte("---\nscope: def\nprerequisites: [CycleA]\n---\n# CycleB\n"), 0o644)
+
+	var warnings []string
+	err = BuildSiteWithOptions(BuildOptions{
+		DirPath: cycleDir,
+		OutDir:  cycleOut,
+		Offline: true,
+		WarnFunc: func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		},
+	})
+	if err != nil {
+		t.Fatalf("BuildSiteWithOptions should not fail on cyclic graph: %v", err)
+	}
+	foundWarning := false
+	for _, w := range warnings {
+		if strings.Contains(w, "skipping prerequisite path for") && strings.Contains(w, "cycle detected") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("Expected cycle warning in WarnFunc, got: %v", warnings)
 	}
 }
 

@@ -44,6 +44,15 @@ type TourStepRef struct {
 	Next     *GuideRef
 }
 
+// PathStepRef describes a step in a guide's topological prerequisite learning path.
+type PathStepRef struct {
+	Step      int
+	Scope     string
+	Title     string
+	URL       string
+	IsCurrent bool
+}
+
 // SyllabusGuideRef describes a guide entry on the academic syllabus index page.
 type SyllabusGuideRef struct {
 	Title         string

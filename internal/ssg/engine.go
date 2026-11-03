@@ -29,18 +29,20 @@ type GuideRef struct {
 
 // PageData contains the rendering context for a guide's page.
 type PageData struct {
-	Title         string
-	Scope         string
-	Tags          []string
-	Content       template.HTML
-	Prerequisites []GuideRef
-	Dependents    []GuideRef
-	SubGuides     []GuideRef
-	ParentGuides  []GuideRef
-	TourSteps     []TourStepRef
-	RelativeRoot  string
-	Sidebar       SidebarData
-	MermaidGraph  template.HTML
+	Title          string
+	Scope          string
+	Tags           []string
+	Content        template.HTML
+	Prerequisites  []GuideRef
+	Dependents     []GuideRef
+	SubGuides      []GuideRef
+	ParentGuides   []GuideRef
+	TourSteps      []TourStepRef
+	RelativeRoot   string
+	Sidebar        SidebarData
+	MermaidGraph   template.HTML
+	LearningPath   []PathStepRef
+	IsFoundational bool
 }
 
 // IndexPageData contains the rendering context for index.html.
@@ -308,19 +310,50 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 
 		guideMermaid := generateGuideMermaid(gf, config, filesByID)
 
+		var learningPath []PathStepRef
+		isFoundational := false
+
+		pathResult, err := graph.PrerequisitePath(gf.guide.ID, guidesMap, config, graph.PathOptions{
+			IncludeSubguides: true,
+		})
+		if err != nil {
+			if opts.WarnFunc != nil {
+				opts.WarnFunc("warning: skipping prerequisite path for %s: %v\n", gf.guide.ID, err)
+			}
+		} else if pathResult != nil {
+			if len(pathResult.Steps) <= 1 {
+				isFoundational = true
+			} else {
+				for _, step := range pathResult.Steps {
+					ref := PathStepRef{
+						Step:      step.Index,
+						Scope:     step.Scope,
+						Title:     step.GuideID,
+						IsCurrent: step.GuideID == gf.guide.ID,
+					}
+					if target, ok := filesByID[step.GuideID]; ok {
+						ref.URL = relURL(gf.outRelPath, target.outRelPath)
+					}
+					learningPath = append(learningPath, ref)
+				}
+			}
+		}
+
 		data := PageData{
-			Title:         gf.guide.ID,
-			Scope:         gf.guide.Metadata.Scope,
-			Tags:          gf.guide.Metadata.Tags,
-			Content:       template.HTML(buf.String()),
-			Prerequisites: prereqs,
-			Dependents:    dependents,
-			SubGuides:     subGuides,
-			ParentGuides:  parentGuides,
-			TourSteps:     tourSteps,
-			RelativeRoot:  gf.relRoot,
-			Sidebar:       sidebar,
-			MermaidGraph:  template.HTML(guideMermaid),
+			Title:          gf.guide.ID,
+			Scope:          gf.guide.Metadata.Scope,
+			Tags:           gf.guide.Metadata.Tags,
+			Content:        template.HTML(buf.String()),
+			Prerequisites:  prereqs,
+			Dependents:     dependents,
+			SubGuides:      subGuides,
+			ParentGuides:   parentGuides,
+			TourSteps:      tourSteps,
+			RelativeRoot:   gf.relRoot,
+			Sidebar:        sidebar,
+			MermaidGraph:   template.HTML(guideMermaid),
+			LearningPath:   learningPath,
+			IsFoundational: isFoundational,
 		}
 
 		f, err := os.Create(gf.outPath)

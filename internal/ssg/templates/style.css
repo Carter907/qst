@@ -403,6 +403,129 @@ tr:nth-child(even) td {
   padding-bottom: 0;
 }
 
+/* Prerequisite Learning Path in Appendix */
+.appendix-path-section {
+  margin-bottom: 24px;
+}
+
+.appendix-path-title {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 4px 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.appendix-path-intro {
+  font-size: 0.88em;
+  color: #555555;
+  margin: 0 0 10px 0;
+}
+
+.appendix-path-notice {
+  font-size: 0.88em;
+  font-style: italic;
+  color: #666666;
+  margin: 4px 0 12px 0;
+}
+
+.appendix-path-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 16px 0;
+  font-size: 0.9em;
+}
+
+.appendix-path-table th {
+  border-top: 1.5px solid #222222;
+  border-bottom: 1px solid #222222;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.82em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #333333;
+}
+
+.appendix-path-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.appendix-path-table tr:last-child td {
+  border-bottom: 1.5px solid #222222;
+}
+
+.path-col-step { width: 10%; }
+.path-col-scope { width: 25%; }
+.path-col-guide { width: 65%; }
+
+.path-step-cell {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  color: #666666;
+}
+
+.path-scope-badge {
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  font-size: 0.88em;
+  color: #444444;
+  background-color: #f2f2f2;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 1px 6px;
+  display: inline-block;
+}
+
+.path-scope-empty {
+  color: #999999;
+}
+
+.path-guide-cell {
+  color: #222222;
+}
+
+.path-guide-link {
+  color: #1a568c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.path-guide-link:hover {
+  color: #0d3358;
+}
+
+.path-guide-text {
+  color: #222222;
+}
+
+.path-current-step {
+  background-color: #f7f7f7;
+}
+
+.path-current-step td {
+  font-weight: 600;
+  color: #111111;
+}
+
+.path-current-step .path-step-cell {
+  color: #111111;
+  font-weight: 700;
+}
+
+.path-current-label {
+  font-size: 0.82em;
+  font-weight: normal;
+  font-style: italic;
+  color: #666666;
+  margin-left: 4px;
+}
+
 .appendix-grid {
   display: flex;
   flex-wrap: wrap;

@@ -15,13 +15,53 @@
     {{ .Content }}
   </div>
 
-  {{ if .MermaidGraph }}
+  {{ if or .LearningPath .IsFoundational .MermaidGraph }}
   <footer class="guide-appendix">
     <h2 class="appendix-title">References & Relations</h2>
+
+    {{ if or .LearningPath .IsFoundational }}
+    <section class="appendix-path-section">
+      <h3 class="appendix-path-title">Prerequisite Learning Path</h3>
+      {{ if .IsFoundational }}
+      <p class="appendix-path-notice">Foundational guide — no prior prerequisites required.</p>
+      {{ else if .LearningPath }}
+      <p class="appendix-path-intro">Recommended topological progression to master before this guide:</p>
+      <table class="appendix-path-table">
+        <thead>
+          <tr>
+            <th scope="col" class="path-col-step">Step</th>
+            <th scope="col" class="path-col-scope">Scope</th>
+            <th scope="col" class="path-col-guide">Guide</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .LearningPath }}
+          <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
+            <td class="path-step-cell">{{ .Step }}</td>
+            <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
+            <td class="path-guide-cell">
+              {{ if .IsCurrent }}
+              <strong>{{ .Title }}</strong> <span class="path-current-label">(current guide)</span>
+              {{ else if .URL }}
+              <a href="{{ .URL }}" class="path-guide-link">{{ .Title }}</a>
+              {{ else }}
+              <span class="path-guide-text">{{ .Title }}</span>
+              {{ end }}
+            </td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+      {{ end }}
+    </section>
+    {{ end }}
+
+    {{ if .MermaidGraph }}
     <figure class="appendix-figure">
       <pre><code class="language-mermaid">{{ .MermaidGraph }}</code></pre>
       <figcaption class="appendix-caption">Figure: Localized concept horizon. Solid arrows indicate prerequisites; dashed arrows indicate sub-guide decomposition.</figcaption>
     </figure>
+    {{ end }}
   </footer>
   {{ end }}
 </article>
