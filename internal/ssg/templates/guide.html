@@ -15,29 +15,25 @@
     {{ .Content }}
   </div>
 
-  {{ if or .LearningPath .IsFoundational .UnlockedPath .IsTerminal .MermaidGraph }}
+  {{ if or .HorizonPath .MermaidGraph }}
   <footer class="guide-appendix">
     <h2 class="appendix-title">References & Relations</h2>
 
-    {{ if or .LearningPath .IsFoundational }}
+    {{ if .HorizonPath }}
     <section class="appendix-path-section">
-      <h3 class="appendix-path-title">Prerequisite Learning Path</h3>
-      {{ if .IsFoundational }}
-      <p class="appendix-path-notice">Foundational guide — no prior prerequisites required.</p>
-      {{ else if .LearningPath }}
-      <p class="appendix-path-intro">Recommended topological progression to master before this guide:</p>
+      <h3 class="appendix-path-title">Learning Trajectory</h3>
       <table class="appendix-path-table">
         <thead>
           <tr>
-            <th scope="col" class="path-col-step">Step</th>
+            <th scope="col" class="path-col-step">Offset</th>
             <th scope="col" class="path-col-scope">Scope</th>
             <th scope="col" class="path-col-guide">Guide</th>
           </tr>
         </thead>
         <tbody>
-          {{ range .LearningPath }}
+          {{ range .HorizonPath }}
           <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
-            <td class="path-step-cell">{{ .Step }}</td>
+            <td class="path-step-cell">{{ .Offset }}</td>
             <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
             <td class="path-guide-cell">
               {{ if .IsCurrent }}
@@ -52,43 +48,37 @@
           {{ end }}
         </tbody>
       </table>
-      {{ end }}
-    </section>
-    {{ end }}
 
-    {{ if or .UnlockedPath .IsTerminal }}
-    <section class="appendix-path-section">
-      <h3 class="appendix-path-title">Subsequent Progression & Unlocked Guides</h3>
-      {{ if .IsTerminal }}
-      <p class="appendix-path-notice">Terminal guide — highest-level concept; unlocks no subsequent guides.</p>
-      {{ else if .UnlockedPath }}
-      <p class="appendix-path-intro">Recommended topological progression unlocked by this guide:</p>
-      <table class="appendix-path-table">
-        <thead>
-          <tr>
-            <th scope="col" class="path-col-step">Step</th>
-            <th scope="col" class="path-col-scope">Scope</th>
-            <th scope="col" class="path-col-guide">Guide</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{ range .UnlockedPath }}
-          <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
-            <td class="path-step-cell">{{ .Step }}</td>
-            <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
-            <td class="path-guide-cell">
-              {{ if .IsCurrent }}
-              <strong>{{ .Title }}</strong> <span class="path-current-label">(current guide)</span>
-              {{ else if .URL }}
-              <a href="{{ .URL }}" class="path-guide-link">{{ .Title }}</a>
-              {{ else }}
-              <span class="path-guide-text">{{ .Title }}</span>
-              {{ end }}
-            </td>
-          </tr>
-          {{ end }}
-        </tbody>
-      </table>
+      {{ if .HasDistantSteps }}
+      <details class="appendix-trajectory-details">
+        <summary class="appendix-trajectory-summary">Show complete trajectory ({{ len .FullTrajectory }} steps)</summary>
+        <table class="appendix-path-table">
+          <thead>
+            <tr>
+              <th scope="col" class="path-col-step">Offset</th>
+              <th scope="col" class="path-col-scope">Scope</th>
+              <th scope="col" class="path-col-guide">Guide</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .FullTrajectory }}
+            <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
+              <td class="path-step-cell">{{ .Offset }}</td>
+              <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
+              <td class="path-guide-cell">
+                {{ if .IsCurrent }}
+                <strong>{{ .Title }}</strong> <span class="path-current-label">(current guide)</span>
+                {{ else if .URL }}
+                <a href="{{ .URL }}" class="path-guide-link">{{ .Title }}</a>
+                {{ else }}
+                <span class="path-guide-text">{{ .Title }}</span>
+                {{ end }}
+              </td>
+            </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </details>
       {{ end }}
     </section>
     {{ end }}

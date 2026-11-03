@@ -1,6 +1,7 @@
 package ssg
 
 import (
+	"html/template"
 	"sort"
 	"strings"
 
@@ -47,6 +48,8 @@ type TourStepRef struct {
 // PathStepRef describes a step in a guide's topological prerequisite learning path.
 type PathStepRef struct {
 	Step      int
+	Offset    template.HTML
+	Hop       int
 	Scope     string
 	Title     string
 	URL       string

@@ -516,23 +516,39 @@ Advanced text.
 		t.Fatalf("BuildSite failed: %v", err)
 	}
 
-	// 1. Verify foundational guide has notice
+	// 1. Verify foundational guide has unified trajectory table without boilerplate notice
 	baseBytes, err := os.ReadFile(filepath.Join(outDir, "BaseConcept.html"))
 	if err != nil {
 		t.Fatalf("Failed to read BaseConcept.html: %v", err)
 	}
 	baseHTML := string(baseBytes)
-	if !strings.Contains(baseHTML, "appendix-path-notice") {
-		t.Errorf("BaseConcept.html should contain appendix-path-notice")
+	if strings.Contains(baseHTML, "appendix-path-notice") {
+		t.Errorf("BaseConcept.html should not contain appendix-path-notice")
 	}
-	if !strings.Contains(baseHTML, "Foundational guide — no prior prerequisites required.") {
-		t.Errorf("BaseConcept.html missing foundational guide notice text")
+	if !strings.Contains(baseHTML, "Learning Trajectory") {
+		t.Errorf("BaseConcept.html missing Learning Trajectory section")
 	}
-	if !strings.Contains(baseHTML, "Subsequent Progression &amp; Unlocked Guides") && !strings.Contains(baseHTML, "Subsequent Progression & Unlocked Guides") {
-		t.Errorf("BaseConcept.html missing subsequent progression section")
+	if !strings.Contains(baseHTML, "appendix-path-table") {
+		t.Errorf("BaseConcept.html missing appendix-path-table")
+	}
+	if !strings.Contains(baseHTML, ">Current<") {
+		t.Errorf("BaseConcept.html missing Current offset cell")
+	}
+	if !strings.Contains(baseHTML, ">+1<") {
+		t.Errorf("BaseConcept.html missing +1 offset cell")
 	}
 	if !strings.Contains(baseHTML, "href=\"intermediate/IntermediateConcept.html\"") {
 		t.Errorf("BaseConcept.html missing unlocked link to intermediate/IntermediateConcept.html")
+	}
+	// Has distant unlock (hop +2), so details dropdown should be present with complete trajectory
+	if !strings.Contains(baseHTML, "appendix-trajectory-details") {
+		t.Errorf("BaseConcept.html missing appendix-trajectory-details")
+	}
+	if !strings.Contains(baseHTML, "Show complete trajectory (3 steps)") {
+		t.Errorf("BaseConcept.html missing trajectory summary label")
+	}
+	if !strings.Contains(baseHTML, ">+2<") {
+		t.Errorf("BaseConcept.html missing +2 offset in full trajectory")
 	}
 	if !strings.Contains(baseHTML, "href=\"AdvancedConcept.html\"") {
 		t.Errorf("BaseConcept.html missing unlocked link to AdvancedConcept.html")
@@ -541,13 +557,29 @@ Advanced text.
 		t.Errorf("BaseConcept.html missing forward localized concept horizon figure")
 	}
 
-	// 2. Verify downstream guide has ordered topological path table
+	// 2. Verify intermediate guide has immediate horizon and no distant details toggle
+	midBytes, err := os.ReadFile(filepath.Join(outDir, "intermediate", "IntermediateConcept.html"))
+	if err != nil {
+		t.Fatalf("Failed to read IntermediateConcept.html: %v", err)
+	}
+	midHTML := string(midBytes)
+	if strings.Contains(midHTML, "appendix-trajectory-details") {
+		t.Errorf("IntermediateConcept.html should not have details toggle when all steps are in horizon")
+	}
+	if !strings.Contains(midHTML, ">-1<") || !strings.Contains(midHTML, ">+1<") {
+		t.Errorf("IntermediateConcept.html missing -1 or +1 offset cells")
+	}
+
+	// 3. Verify terminal guide has ordered topological trajectory with details for distant prereq
 	advBytes, err := os.ReadFile(filepath.Join(outDir, "AdvancedConcept.html"))
 	if err != nil {
 		t.Fatalf("Failed to read AdvancedConcept.html: %v", err)
 	}
 	advHTML := string(advBytes)
 
+	if !strings.Contains(advHTML, "Learning Trajectory") {
+		t.Errorf("AdvancedConcept.html missing Learning Trajectory section")
+	}
 	if !strings.Contains(advHTML, "appendix-path-table") {
 		t.Errorf("AdvancedConcept.html missing appendix-path-table")
 	}
@@ -563,8 +595,17 @@ Advanced text.
 	if !strings.Contains(advHTML, "(current guide)") {
 		t.Errorf("AdvancedConcept.html missing (current guide) label")
 	}
-	if !strings.Contains(advHTML, "Terminal guide — highest-level concept; unlocks no subsequent guides.") {
-		t.Errorf("AdvancedConcept.html missing terminal guide notice")
+	if strings.Contains(advHTML, "Terminal guide") {
+		t.Errorf("AdvancedConcept.html should not have terminal guide notice")
+	}
+	if !strings.Contains(advHTML, ">-2<") {
+		t.Errorf("AdvancedConcept.html missing -2 offset cell for distant prerequisite")
+	}
+	if !strings.Contains(advHTML, ">-1<") {
+		t.Errorf("AdvancedConcept.html missing -1 offset cell for immediate prerequisite")
+	}
+	if !strings.Contains(advHTML, "appendix-trajectory-details") {
+		t.Errorf("AdvancedConcept.html missing trajectory details dropdown for -2 prereq")
 	}
 	if !strings.Contains(advHTML, "definition") || !strings.Contains(advHTML, "explanation") {
 		t.Errorf("AdvancedConcept.html missing scope badges in path table")

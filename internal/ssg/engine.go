@@ -30,22 +30,25 @@ type GuideRef struct {
 
 // PageData contains the rendering context for a guide's page.
 type PageData struct {
-	Title          string
-	Scope          string
-	Tags           []string
-	Content        template.HTML
-	Prerequisites  []GuideRef
-	Dependents     []GuideRef
-	SubGuides      []GuideRef
-	ParentGuides   []GuideRef
-	TourSteps      []TourStepRef
-	RelativeRoot   string
-	Sidebar        SidebarData
-	MermaidGraph   template.HTML
-	LearningPath   []PathStepRef
-	IsFoundational bool
-	UnlockedPath   []PathStepRef
-	IsTerminal     bool
+	Title           string
+	Scope           string
+	Tags            []string
+	Content         template.HTML
+	Prerequisites   []GuideRef
+	Dependents      []GuideRef
+	SubGuides       []GuideRef
+	ParentGuides    []GuideRef
+	TourSteps       []TourStepRef
+	RelativeRoot    string
+	Sidebar         SidebarData
+	MermaidGraph    template.HTML
+	HorizonPath     []PathStepRef
+	FullTrajectory  []PathStepRef
+	HasDistantSteps bool
+	LearningPath    []PathStepRef
+	IsFoundational  bool
+	UnlockedPath    []PathStepRef
+	IsTerminal      bool
 }
 
 // IndexPageData contains the rendering context for index.html.
@@ -352,7 +355,32 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		guideMermaid := generateGuideMermaid(gf, config, filesByID, graphIndex)
 
 		var learningPath []PathStepRef
+		var upstreamRefs []PathStepRef
 		isFoundational := false
+
+		// 1. Calculate Upstream Hop Distances (BFS backwards)
+		visitedUp := map[string]int{gf.guide.ID: 0}
+		qUp := []string{gf.guide.ID}
+		for len(qUp) > 0 {
+			curr := qUp[0]
+			qUp = qUp[1:]
+			depth := visitedUp[curr]
+			currG, ok := guidesMap[curr]
+			if !ok {
+				continue
+			}
+			var deps []string
+			deps = append(deps, currG.Metadata.Prerequisites...)
+			for _, sub := range currG.Metadata.SubGuides {
+				deps = append(deps, sub.Guide)
+			}
+			for _, dep := range deps {
+				if _, seen := visitedUp[dep]; !seen {
+					visitedUp[dep] = depth + 1
+					qUp = append(qUp, dep)
+				}
+			}
+		}
 
 		pathResult, err := graph.PrerequisitePath(gf.guide.ID, guidesMap, config, graph.PathOptions{
 			IncludeSubguides: true,
@@ -366,21 +394,56 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 				isFoundational = true
 			} else {
 				for _, step := range pathResult.Steps {
+					isCurr := step.GuideID == gf.guide.ID
+					hop := 0
+					offset := template.HTML("Current")
+					if !isCurr {
+						depth := visitedUp[step.GuideID]
+						if depth == 0 {
+							depth = 1
+						}
+						hop = -depth
+						offset = template.HTML(fmt.Sprintf("-%d", depth))
+					}
 					ref := PathStepRef{
 						Step:      step.Index,
+						Hop:       hop,
+						Offset:    offset,
 						Scope:     step.Scope,
 						Title:     step.GuideID,
-						IsCurrent: step.GuideID == gf.guide.ID,
+						IsCurrent: isCurr,
 					}
 					if target, ok := filesByID[step.GuideID]; ok {
 						ref.URL = relURL(gf.outRelPath, target.outRelPath)
 					}
 					learningPath = append(learningPath, ref)
+					if !isCurr {
+						upstreamRefs = append(upstreamRefs, ref)
+					}
+				}
+			}
+		}
+
+		// 2. Calculate Downstream Hop Distances (BFS forwards)
+		visitedDown := map[string]int{gf.guide.ID: 0}
+		qDown := []string{gf.guide.ID}
+		for len(qDown) > 0 {
+			curr := qDown[0]
+			qDown = qDown[1:]
+			depth := visitedDown[curr]
+			var downs []string
+			downs = append(downs, graphIndex.GetDependents(curr)...)
+			downs = append(downs, graphIndex.GetParentGuides(curr)...)
+			for _, down := range downs {
+				if _, seen := visitedDown[down]; !seen {
+					visitedDown[down] = depth + 1
+					qDown = append(qDown, down)
 				}
 			}
 		}
 
 		var unlockedPath []PathStepRef
+		var downstreamRefs []PathStepRef
 		isTerminal := false
 
 		unlocksResult, err := graph.UnlocksPath(gf.guide.ID, guidesMap, config, graph.PathOptions{
@@ -395,37 +458,91 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 				isTerminal = true
 			} else {
 				for _, step := range unlocksResult.Steps {
+					isCurr := step.GuideID == gf.guide.ID
+					hop := 0
+					offset := template.HTML("Current")
+					if !isCurr {
+						depth := visitedDown[step.GuideID]
+						if depth == 0 {
+							depth = 1
+						}
+						hop = depth
+						offset = template.HTML(fmt.Sprintf("+%d", depth))
+					}
 					ref := PathStepRef{
 						Step:      step.Index,
+						Hop:       hop,
+						Offset:    offset,
 						Scope:     step.Scope,
 						Title:     step.GuideID,
-						IsCurrent: step.GuideID == gf.guide.ID,
+						IsCurrent: isCurr,
 					}
 					if target, ok := filesByID[step.GuideID]; ok {
 						ref.URL = relURL(gf.outRelPath, target.outRelPath)
 					}
 					unlockedPath = append(unlockedPath, ref)
+					if !isCurr {
+						downstreamRefs = append(downstreamRefs, ref)
+					}
 				}
 			}
 		}
 
+		// 3. Assemble Unified Trajectory and Horizon Paths
+		var horizonPath []PathStepRef
+		var fullTrajectory []PathStepRef
+		hasDistantSteps := false
+
+		if len(upstreamRefs) > 0 || len(downstreamRefs) > 0 {
+			currentRef := PathStepRef{
+				Offset:    template.HTML("Current"),
+				Hop:       0,
+				Scope:     gf.guide.Metadata.Scope,
+				Title:     gf.guide.ID,
+				IsCurrent: true,
+			}
+
+			// Full Trajectory: Upstream -> Current -> Downstream
+			fullTrajectory = append(fullTrajectory, upstreamRefs...)
+			fullTrajectory = append(fullTrajectory, currentRef)
+			fullTrajectory = append(fullTrajectory, downstreamRefs...)
+
+			// Horizon: Direct Prereqs (Hop == -1) -> Current -> Direct Unlocks (Hop == 1)
+			for _, ref := range upstreamRefs {
+				if ref.Hop == -1 {
+					horizonPath = append(horizonPath, ref)
+				}
+			}
+			horizonPath = append(horizonPath, currentRef)
+			for _, ref := range downstreamRefs {
+				if ref.Hop == 1 {
+					horizonPath = append(horizonPath, ref)
+				}
+			}
+
+			hasDistantSteps = len(fullTrajectory) > len(horizonPath)
+		}
+
 		data := PageData{
-			Title:          gf.guide.ID,
-			Scope:          gf.guide.Metadata.Scope,
-			Tags:           gf.guide.Metadata.Tags,
-			Content:        template.HTML(buf.String()),
-			Prerequisites:  prereqs,
-			Dependents:     dependents,
-			SubGuides:      subGuides,
-			ParentGuides:   parentGuides,
-			TourSteps:      tourSteps,
-			RelativeRoot:   gf.relRoot,
-			Sidebar:        sidebar,
-			MermaidGraph:   template.HTML(guideMermaid),
-			LearningPath:   learningPath,
-			IsFoundational: isFoundational,
-			UnlockedPath:   unlockedPath,
-			IsTerminal:     isTerminal,
+			Title:           gf.guide.ID,
+			Scope:           gf.guide.Metadata.Scope,
+			Tags:            gf.guide.Metadata.Tags,
+			Content:         template.HTML(buf.String()),
+			Prerequisites:   prereqs,
+			Dependents:      dependents,
+			SubGuides:       subGuides,
+			ParentGuides:    parentGuides,
+			TourSteps:       tourSteps,
+			RelativeRoot:    gf.relRoot,
+			Sidebar:         sidebar,
+			MermaidGraph:    template.HTML(guideMermaid),
+			HorizonPath:     horizonPath,
+			FullTrajectory:  fullTrajectory,
+			HasDistantSteps: hasDistantSteps,
+			LearningPath:    learningPath,
+			IsFoundational:  isFoundational,
+			UnlockedPath:    unlockedPath,
+			IsTerminal:      isTerminal,
 		}
 
 		f, err := os.Create(gf.outPath)
