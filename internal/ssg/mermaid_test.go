@@ -77,13 +77,13 @@ func TestGenerateGuideMermaid(t *testing.T) {
 	if !strings.HasPrefix(diag, "graph LR\n") {
 		t.Fatalf("expected graph LR prefix, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, `current_lesson["Lesson: Current Lesson"]`) {
+	if !strings.Contains(diag, `current_lesson["Lesson<br/>Current Lesson"]`) {
 		t.Errorf("expected current lesson node in diagram, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, `prereq_lesson["Lesson: Prereq Lesson"]`) {
+	if !strings.Contains(diag, `prereq_lesson["Lesson<br/>Prereq Lesson"]`) {
 		t.Errorf("expected prereq lesson node in diagram, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, `sub_definition["Definition: Sub Definition"]`) {
+	if !strings.Contains(diag, `sub_definition["Definition<br/>Sub Definition"]`) {
 		t.Errorf("expected sub definition node in diagram, got:\n%s", diag)
 	}
 	if !strings.Contains(diag, "prereq_lesson --> current_lesson") {
@@ -128,7 +128,7 @@ func TestGenerateGuideMermaid(t *testing.T) {
 	if !strings.HasPrefix(foundationalDiag, "graph LR\n") {
 		t.Fatalf("expected graph LR prefix for foundational guide with dependents, got:\n%s", foundationalDiag)
 	}
-	if !strings.Contains(foundationalDiag, `sub_definition["Definition: Sub Definition"]`) {
+	if !strings.Contains(foundationalDiag, `sub_definition["Definition<br/>Sub Definition"]`) {
 		t.Errorf("expected sub definition node in foundational diagram, got:\n%s", foundationalDiag)
 	}
 	if !strings.Contains(foundationalDiag, "current_lesson -.-> sub_definition") {
@@ -164,10 +164,10 @@ func TestGenerateGuideMermaidText(t *testing.T) {
 	if !strings.HasPrefix(diag, "```mermaid\ngraph LR\n") {
 		t.Errorf("expected mermaid block prefix, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, `guide_1["Lesson: Guide 1"]`) {
+	if !strings.Contains(diag, `guide_1["Lesson<br/>Guide 1"]`) {
 		t.Errorf("expected guide_1 node with scope prefix, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, `guide_2["Lesson: Guide 2"]`) {
+	if !strings.Contains(diag, `guide_2["Lesson<br/>Guide 2"]`) {
 		t.Errorf("expected guide_2 node with scope prefix, got:\n%s", diag)
 	}
 	if !strings.Contains(diag, "guide_2 --> guide_1") {
@@ -184,6 +184,92 @@ func TestGenerateGuideMermaidText(t *testing.T) {
 	_, err = GenerateGuideMermaidText("NonExistent", guides, manifest)
 	if err == nil {
 		t.Errorf("expected error for non-existent guide, got nil")
+	}
+}
+
+func TestWrapNodeTitle(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		targetLen int
+		expected  string
+	}{
+		{
+			name:      "single word",
+			input:     "Variables",
+			targetLen: 24,
+			expected:  "Variables",
+		},
+		{
+			name:      "short multi-word within limit",
+			input:     "Writing a Simple C",
+			targetLen: 24,
+			expected:  "Writing a Simple C",
+		},
+		{
+			name:      "balanced multi-word exceeding limit",
+			input:     "Automated CLI Markdown Documentation Generator",
+			targetLen: 24,
+			expected:  "Automated CLI Markdown<br/>Documentation Generator",
+		},
+		{
+			name:      "three line wrap",
+			input:     "Testable Cobra Output Channels and Exit Interception",
+			targetLen: 24,
+			expected:  "Testable Cobra Output<br/>Channels and Exit<br/>Interception",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wrapNodeTitle(tt.input, tt.targetLen)
+			if got != tt.expected {
+				t.Errorf("wrapNodeTitle(%q, %d) = %q, expected %q", tt.input, tt.targetLen, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatGuideNodeLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       string
+		scope    string
+		expected string
+	}{
+		{
+			name:     "with scope and short title",
+			id:       "Variable",
+			scope:    "definition",
+			expected: "Definition<br/>Variable",
+		},
+		{
+			name:     "with scope and wrapped long title",
+			id:       "Automated CLI Markdown Documentation Generator",
+			scope:    "explanation",
+			expected: "Explanation<br/>Automated CLI Markdown<br/>Documentation Generator",
+		},
+		{
+			name:     "empty scope",
+			id:       "Automated CLI Markdown Documentation Generator",
+			scope:    "",
+			expected: "Automated CLI Markdown<br/>Documentation Generator",
+		},
+		{
+			name:     "escapes quotes",
+			id:       `Guide with "quotes"`,
+			scope:    "definition",
+			expected: "Definition<br/>Guide with #quot;quotes#quot;",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatGuideNodeLabel(tt.id, tt.scope)
+			if got != tt.expected {
+				t.Errorf("formatGuideNodeLabel(%q, %q) = %q, expected %q", tt.id, tt.scope, got, tt.expected)
+			}
+		})
 	}
 }
 

@@ -27,18 +27,48 @@ func cleanMermaidID(id string) string {
 	return s
 }
 
-// formatGuideNodeLabel formats a guide node label with a capitalized scope prefix
-// according to the academic format: "<Scope>: <Title>" (e.g. "Explanation: De Morgan's Laws").
-// If no scope is present, it returns the escaped title.
+// wrapNodeTitle wraps a guide title into multiple lines at word boundaries
+// targeting approximately targetLen characters per line, separated by <br/>.
+func wrapNodeTitle(title string, targetLen int) string {
+	words := strings.Fields(title)
+	if len(words) <= 1 {
+		return title
+	}
+
+	var lines []string
+	var current strings.Builder
+
+	for _, word := range words {
+		if current.Len() == 0 {
+			current.WriteString(word)
+		} else if current.Len()+1+len(word) <= targetLen {
+			current.WriteByte(' ')
+			current.WriteString(word)
+		} else {
+			lines = append(lines, current.String())
+			current.Reset()
+			current.WriteString(word)
+		}
+	}
+	if current.Len() > 0 {
+		lines = append(lines, current.String())
+	}
+	return strings.Join(lines, "<br/>")
+}
+
+// formatGuideNodeLabel formats a guide node label with a capitalized scope header
+// and wrapped title separated by <br/> according to the minimal academic format:
+// "<Scope><br/><Wrapped Title>". If no scope is present, it returns the wrapped title.
 func formatGuideNodeLabel(id string, sc string) string {
-	escapedID := strings.ReplaceAll(id, "\"", "#quot;")
+	wrappedID := wrapNodeTitle(id, 24)
+	escapedID := strings.ReplaceAll(wrappedID, "\"", "#quot;")
 	if sc == "" {
 		return escapedID
 	}
 	escapedScope := strings.ReplaceAll(sc, "\"", "#quot;")
 	r := []rune(escapedScope)
 	capScope := string(unicode.ToUpper(r[0])) + string(r[1:])
-	return fmt.Sprintf("%s: %s", capScope, escapedID)
+	return fmt.Sprintf("%s<br/>%s", capScope, escapedID)
 }
 
 // MermaidOptions specifies formatting options when rendering localized Mermaid diagrams.

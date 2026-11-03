@@ -182,8 +182,8 @@ Body text for Guide B.
 	if !strings.Contains(guideAHtml, "class=\"language-mermaid\"") {
 		t.Errorf("GuideA.html should contain localized mermaid diagram")
 	}
-	if !strings.Contains(guideAHtml, "Explanation: GuideA") {
-		t.Errorf("GuideA.html should contain Explanation: GuideA node label")
+	if !strings.Contains(guideAHtml, "Explanation<br/>GuideA") {
+		t.Errorf("GuideA.html should contain Explanation<br/>GuideA node label")
 	}
 	if !strings.Contains(guideAHtml, "guidea -.->") {
 		t.Errorf("GuideA.html should show subguide edge for GuideB")
@@ -262,8 +262,8 @@ Body text for Guide B.
 	if !strings.Contains(guideBHtml, "class=\"language-mermaid\"") {
 		t.Errorf("sub/GuideB.html should contain localized mermaid diagram")
 	}
-	if !strings.Contains(guideBHtml, "Definition: GuideB") {
-		t.Errorf("sub/GuideB.html should contain Definition: GuideB node label")
+	if !strings.Contains(guideBHtml, "Definition<br/>GuideB") {
+		t.Errorf("sub/GuideB.html should contain Definition<br/>GuideB node label")
 	}
 	if !strings.Contains(guideBHtml, "guidea --> guideb") {
 		t.Errorf("sub/GuideB.html should show prerequisite edge from GuideA")

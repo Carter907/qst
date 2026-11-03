@@ -882,7 +882,7 @@ func TestViewCommand_LocalizedGuide(t *testing.T) {
 	if !strings.Contains(out, "```mermaid") || !strings.Contains(out, "graph LR") {
 		t.Errorf("expected mermaid block in localized view output, got: %s", out)
 	}
-	if !strings.Contains(out, `def_1["Definition: Def 1"]`) {
+	if !strings.Contains(out, `def_1["Definition<br/>Def 1"]`) {
 		t.Errorf("expected def_1 node with scope prefix, got: %s", out)
 	}
 	if !strings.Contains(out, "class def_1 currentGuide;") {
