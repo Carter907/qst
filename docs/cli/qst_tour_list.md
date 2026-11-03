@@ -13,7 +13,7 @@ qst tour list [flags]
 qst tour list
 
 # List tours in specific directory
-qst tour list -d examples/Conditionals
+qst tour list -d examples/C_programming
 ```
 
 ### Options
