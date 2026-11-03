@@ -130,35 +130,24 @@ func (r *SegmentRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer)
 func (r *SegmentRenderer) renderSegment(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	n := node.(*SegmentBlockNode)
 	if entering {
-		var titleHTML string
-		if n.URL != "" {
-			titleHTML = fmt.Sprintf(`<a href="%s" class="segment-chip-title">%s</a>`, html.EscapeString(n.URL), html.EscapeString(n.Title))
-		} else {
-			titleHTML = fmt.Sprintf(`<span class="segment-chip-title">%s</span>`, html.EscapeString(n.Title))
+		tooltip := fmt.Sprintf("Sub-guide: %s", n.Title)
+		if n.Adherence != "" && n.RangeStr != "" {
+			tooltip = fmt.Sprintf("Sub-guide: %s (%s, %s)", n.Title, n.Adherence, n.RangeStr)
+		} else if n.Adherence != "" {
+			tooltip = fmt.Sprintf("Sub-guide: %s (%s)", n.Title, n.Adherence)
+		} else if n.RangeStr != "" {
+			tooltip = fmt.Sprintf("Sub-guide: %s (%s)", n.Title, n.RangeStr)
 		}
 
-		var adherenceHTML string
-		if n.Adherence != "" {
-			adherenceHTML = fmt.Sprintf(`<span class="segment-chip-badge segment-chip-adherence">%s</span>`, html.EscapeString(n.Adherence))
+		href := n.URL
+		if href == "" {
+			href = "#"
 		}
 
-		var rangeHTML string
-		if n.RangeStr != "" {
-			rangeHTML = fmt.Sprintf(`<span class="segment-chip-badge segment-chip-range">%s</span>`, html.EscapeString(n.RangeStr))
-		}
-
-		if _, err := fmt.Fprintf(w, `<section class="segment-section" data-segment="%d-%d">
-  <div class="segment-callout" id="segment-L%d">
-    <div class="segment-chip">
-      <span class="segment-chip-icon">↳</span>
-      <span class="segment-chip-label">Sub-guide:</span>
-      %s
-      %s
-      %s
-    </div>
-  </div>
+		if _, err := fmt.Fprintf(w, `<section class="segment-section" data-segment="%d-%d" id="segment-L%d">
+  <a href="%s" class="segment-indicator" title="%s" aria-label="%s">↳</a>
   <div class="segment-body">
-`, n.StartLine, n.EndLine, n.StartLine, titleHTML, adherenceHTML, rangeHTML); err != nil {
+`, n.StartLine, n.EndLine, n.StartLine, html.EscapeString(href), html.EscapeString(tooltip), html.EscapeString(tooltip)); err != nil {
 			return ast.WalkStop, err
 		}
 	} else {

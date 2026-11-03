@@ -365,92 +365,46 @@ tr:nth-child(even) td {
   display: inline;
 }
 
-/* Sub-guide Segment Section & Header Chip */
+/* Sub-guide Segment Section & Subtle Left Margin Indicator */
 .segment-section {
-  margin: 28px 0;
+  position: relative;
+  margin: 20px 0;
 }
 
-.segment-callout {
-  margin-bottom: 12px;
+.segment-indicator {
+  position: absolute;
+  left: -22px;
+  top: 0;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  user-select: none;
+  transition: color 0.15s ease;
 }
 
-.segment-chip {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: #475569;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-}
-
-.segment-chip-icon {
+.segment-indicator:hover {
   color: #1a568c;
-  font-weight: 700;
-  font-size: 0.95em;
 }
 
-.segment-chip-label {
-  font-weight: 600;
-  color: #334155;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-}
-
-.segment-chip-title {
-  font-weight: 600;
-  color: #1a568c;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.segment-chip-title:hover {
-  color: #0d3358;
-}
-
-.segment-chip-badge {
-  font-size: 0.72rem;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-variant-numeric: tabular-nums;
-}
-
-.segment-chip-adherence {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  font-variant: small-caps;
-  text-transform: lowercase;
-}
-
-.segment-chip-range {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-family: var(--font-mono, monospace);
-}
-
-/* Cited text block framed with 2.5px left accent border */
 .segment-body {
-  border-left: 2.5px solid #1a568c;
-  padding-left: 18px;
-  margin-left: 2px;
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  margin-left: -12px;
+  transition: border-color 0.15s ease;
 }
 
-.segment-section:target .segment-body,
-.segment-callout:target + .segment-body {
-  border-left-color: #0d3358;
+/* Vertical bar appears ONLY when hovering the indicator link */
+.segment-indicator:hover ~ .segment-body {
+  border-left-color: #1a568c;
 }
 
-.segment-callout:target .segment-chip {
-  border-color: #1a568c;
-  background-color: #f0f7ff;
+.segment-section:target .segment-body {
+  border-left-color: #1a568c;
+}
+
+.segment-section:target .segment-indicator {
+  color: #1a568c;
 }
 
 /* Guide Appendix (References & Relations) */

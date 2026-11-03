@@ -676,30 +676,32 @@ Here is the text relating to the child concept.
 	}
 	parentHTML := string(parentBytes)
 
-	// Verify segment header chip and accent wrapper
+	// Verify subtle left margin indicator and segment body wrapper
 	if !strings.Contains(parentHTML, "segment-section") {
 		t.Errorf("ParentLesson.html missing segment-section container")
 	}
-	if !strings.Contains(parentHTML, "segment-callout") {
-		t.Errorf("ParentLesson.html missing segment-callout")
-	}
-	if !strings.Contains(parentHTML, "segment-chip") {
-		t.Errorf("ParentLesson.html missing segment-chip")
+	if !strings.Contains(parentHTML, "segment-indicator") {
+		t.Errorf("ParentLesson.html missing segment-indicator")
 	}
 	if !strings.Contains(parentHTML, "ChildConcept.html") {
-		t.Errorf("ParentLesson.html missing link to ChildConcept.html in segment chip")
+		t.Errorf("ParentLesson.html missing link to ChildConcept.html in segment indicator")
 	}
-	if !strings.Contains(parentHTML, "ChildConcept") {
-		t.Errorf("ParentLesson.html missing ChildConcept title in segment chip")
+	if !strings.Contains(parentHTML, `title="Sub-guide: ChildConcept (strict, lines 2–3)"`) {
+		t.Errorf("ParentLesson.html missing native tooltip title on segment indicator")
 	}
-	if !strings.Contains(parentHTML, "strict") {
-		t.Errorf("ParentLesson.html missing adherence badge in segment chip")
-	}
-	if !strings.Contains(parentHTML, "lines 2–3") {
-		t.Errorf("ParentLesson.html missing line range badge in segment chip")
+	if !strings.Contains(parentHTML, ">↳</a>") {
+		t.Errorf("ParentLesson.html missing ↳ arrow icon in segment indicator")
 	}
 	if !strings.Contains(parentHTML, "segment-body") {
 		t.Errorf("ParentLesson.html missing segment-body")
+	}
+
+	// Verify bulky chip elements are removed
+	if strings.Contains(parentHTML, "segment-chip") {
+		t.Errorf("ParentLesson.html should not contain segment-chip (bulky chip removed)")
+	}
+	if strings.Contains(parentHTML, "segment-callout") {
+		t.Errorf("ParentLesson.html should not contain segment-callout")
 	}
 
 	// Verify raw line numbers are removed, while anchor spans are preserved
