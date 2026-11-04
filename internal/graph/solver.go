@@ -93,7 +93,7 @@ func PrerequisitePath(targetID string, guides map[string]Guide, config Manifest,
 	return solveTopological(closure, guides, config, opts, targetID)
 }
 
-// SubsequentPath discovers all downstream guides that targetID directly or transitively unlocks/leads to.
+// SubsequentPath discovers all downstream guides that targetID directly or transitively leads to.
 func SubsequentPath(targetID string, guides map[string]Guide, config Manifest, opts PathOptions) (*LearningPath, error) {
 	targetGuide, exists := guides[targetID]
 	if !exists {
@@ -135,11 +135,6 @@ func SubsequentPath(targetID string, guides map[string]Guide, config Manifest, o
 	}
 
 	return solveTopological(closure, guides, config, opts, "")
-}
-
-// UnlocksPath is a deprecated alias for SubsequentPath.
-func UnlocksPath(targetID string, guides map[string]Guide, config Manifest, opts PathOptions) (*LearningPath, error) {
-	return SubsequentPath(targetID, guides, config, opts)
 }
 
 // solveTopological runs Kahn's algorithm on the induced subgraph with deterministic tie-breaking.

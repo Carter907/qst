@@ -153,15 +153,6 @@ func TestSubsequentPath(t *testing.T) {
 			t.Errorf("step %d: expected %s, got %s", i+1, expected[i], step.GuideID)
 		}
 	}
-
-	// Verify deprecated UnlocksPath alias produces identical results
-	legacyPath, err := UnlocksPath("Base", guides, config, PathOptions{})
-	if err != nil {
-		t.Fatalf("unexpected error from UnlocksPath: %v", err)
-	}
-	if len(legacyPath.Steps) != len(path.Steps) {
-		t.Fatalf("expected identical length, got %d vs %d", len(legacyPath.Steps), len(path.Steps))
-	}
 }
 
 func TestTopologicalSort_Cycle(t *testing.T) {
