@@ -50,6 +50,7 @@ type PathStepRef struct {
 	Step      int
 	Offset    template.HTML
 	Hop       int
+	Relation  string
 	Scope     string
 	Title     string
 	URL       string

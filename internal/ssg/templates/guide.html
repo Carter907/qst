@@ -26,6 +26,7 @@
         <thead>
           <tr>
             <th scope="col" class="path-col-step">Offset</th>
+            <th scope="col" class="path-col-relation">Relation</th>
             <th scope="col" class="path-col-scope">Scope</th>
             <th scope="col" class="path-col-guide">Guide</th>
           </tr>
@@ -34,6 +35,7 @@
           {{ range .HorizonPath }}
           <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
             <td class="path-step-cell">{{ .Offset }}</td>
+            <td class="path-relation-cell">{{ .Relation }}</td>
             <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
             <td class="path-guide-cell">
               {{ if .IsCurrent }}
@@ -56,6 +58,7 @@
           <thead>
             <tr>
               <th scope="col" class="path-col-step">Offset</th>
+              <th scope="col" class="path-col-relation">Relation</th>
               <th scope="col" class="path-col-scope">Scope</th>
               <th scope="col" class="path-col-guide">Guide</th>
             </tr>
@@ -64,6 +67,7 @@
             {{ range .FullTrajectory }}
             <tr{{ if .IsCurrent }} class="path-current-step"{{ end }}>
               <td class="path-step-cell">{{ .Offset }}</td>
+              <td class="path-relation-cell">{{ .Relation }}</td>
               <td class="path-scope-cell">{{ if .Scope }}<span class="path-scope-badge">{{ .Scope }}</span>{{ else }}<span class="path-scope-empty">–</span>{{ end }}</td>
               <td class="path-guide-cell">
                 {{ if .IsCurrent }}

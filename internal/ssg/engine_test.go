@@ -512,6 +512,20 @@ Advanced text.
 		t.Fatalf("Failed to write AdvancedConcept.md: %v", err)
 	}
 
+	peerContent := `---
+scope: definition
+prerequisites:
+  - BaseConcept
+tags:
+  - peer
+---
+# Peer Concept
+Peer text.
+`
+	if err := os.WriteFile(filepath.Join(sourceDir, "PeerConcept.md"), []byte(peerContent), 0o644); err != nil {
+		t.Fatalf("Failed to write PeerConcept.md: %v", err)
+	}
+
 	if err := BuildSite(sourceDir, outDir); err != nil {
 		t.Fatalf("BuildSite failed: %v", err)
 	}
@@ -531,6 +545,18 @@ Advanced text.
 	if !strings.Contains(baseHTML, "appendix-path-table") {
 		t.Errorf("BaseConcept.html missing appendix-path-table")
 	}
+	if !strings.Contains(baseHTML, "<th scope=\"col\" class=\"path-col-relation\">Relation</th>") {
+		t.Errorf("BaseConcept.html missing Relation column header")
+	}
+	if !strings.Contains(baseHTML, "<td class=\"path-relation-cell\">Current</td>") {
+		t.Errorf("BaseConcept.html missing Current relation cell")
+	}
+	if !strings.Contains(baseHTML, "<td class=\"path-relation-cell\">Parent</td>") {
+		t.Errorf("BaseConcept.html missing Parent relation cell")
+	}
+	if !strings.Contains(baseHTML, "<td class=\"path-relation-cell\">Subsequent</td>") {
+		t.Errorf("BaseConcept.html missing Subsequent relation cell")
+	}
 	if !strings.Contains(baseHTML, ">Current<") {
 		t.Errorf("BaseConcept.html missing Current offset cell")
 	}
@@ -544,8 +570,8 @@ Advanced text.
 	if !strings.Contains(baseHTML, "appendix-trajectory-details") {
 		t.Errorf("BaseConcept.html missing appendix-trajectory-details")
 	}
-	if !strings.Contains(baseHTML, "Show complete trajectory (3 steps)") {
-		t.Errorf("BaseConcept.html missing trajectory summary label")
+	if !strings.Contains(baseHTML, "Show complete trajectory (4 steps)") {
+		t.Errorf("BaseConcept.html missing trajectory summary label for 4 steps")
 	}
 	if !strings.Contains(baseHTML, ">+2<") {
 		t.Errorf("BaseConcept.html missing +2 offset in full trajectory")
@@ -568,6 +594,22 @@ Advanced text.
 	}
 	if !strings.Contains(midHTML, ">-1<") || !strings.Contains(midHTML, ">+1<") {
 		t.Errorf("IntermediateConcept.html missing -1 or +1 offset cells")
+	}
+	if !strings.Contains(midHTML, "<td class=\"path-relation-cell\">Sub-guide</td>") {
+		t.Errorf("IntermediateConcept.html missing Sub-guide relation cell")
+	}
+	if !strings.Contains(midHTML, "<td class=\"path-relation-cell\">Parent</td>") {
+		t.Errorf("IntermediateConcept.html missing Parent relation cell")
+	}
+
+	// 2b. Verify peer guide has horizontal prerequisite
+	peerBytes, err := os.ReadFile(filepath.Join(outDir, "PeerConcept.html"))
+	if err != nil {
+		t.Fatalf("Failed to read PeerConcept.html: %v", err)
+	}
+	peerHTML := string(peerBytes)
+	if !strings.Contains(peerHTML, "<td class=\"path-relation-cell\">Prerequisite</td>") {
+		t.Errorf("PeerConcept.html missing Prerequisite relation cell")
 	}
 
 	// 3. Verify terminal guide has ordered topological trajectory with details for distant prereq
@@ -609,6 +651,16 @@ Advanced text.
 	}
 	if !strings.Contains(advHTML, "definition") || !strings.Contains(advHTML, "explanation") {
 		t.Errorf("AdvancedConcept.html missing scope badges in path table")
+	}
+
+	if !strings.Contains(advHTML, "<td class=\"path-relation-cell\">Sub-guide</td>") {
+		t.Errorf("AdvancedConcept.html missing Sub-guide relation cell")
+	}
+	if !strings.Contains(advHTML, "<td class=\"path-relation-cell\">Prerequisite</td>") {
+		t.Errorf("AdvancedConcept.html missing Prerequisite relation cell")
+	}
+	if !strings.Contains(advHTML, "<td class=\"path-relation-cell\">Current</td>") {
+		t.Errorf("AdvancedConcept.html missing Current relation cell")
 	}
 
 	// Verify step ordering: BaseConcept -> IntermediateConcept -> AdvancedConcept

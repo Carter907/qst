@@ -482,14 +482,20 @@ tr:nth-child(even) td {
   border-bottom: 1.5px solid #222222;
 }
 
-.path-col-step { width: 14%; }
-.path-col-scope { width: 24%; }
-.path-col-guide { width: 62%; }
+.path-col-step { width: 12%; }
+.path-col-relation { width: 16%; }
+.path-col-scope { width: 18%; }
+.path-col-guide { width: 54%; }
 
 .path-step-cell {
   font-family: var(--font-mono, monospace);
   font-size: 0.85em;
   color: #666666;
+}
+
+.path-relation-cell {
+  font-size: 0.88em;
+  color: #555555;
 }
 
 .path-scope-badge {

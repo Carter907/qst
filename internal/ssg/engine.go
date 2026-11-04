@@ -393,10 +393,16 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			if len(pathResult.Steps) <= 1 {
 				isFoundational = true
 			} else {
+				subGuidesOfCurrent := make(map[string]bool)
+				for _, sub := range gf.guide.Metadata.SubGuides {
+					subGuidesOfCurrent[sub.Guide] = true
+				}
+
 				for _, step := range pathResult.Steps {
 					isCurr := step.GuideID == gf.guide.ID
 					hop := 0
 					offset := template.HTML("Current")
+					relation := "Current"
 					if !isCurr {
 						depth := visitedUp[step.GuideID]
 						if depth == 0 {
@@ -404,11 +410,21 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 						}
 						hop = -depth
 						offset = template.HTML(fmt.Sprintf("-%d", depth))
+						if depth == 1 {
+							if subGuidesOfCurrent[step.GuideID] {
+								relation = "Sub-guide"
+							} else {
+								relation = "Prerequisite"
+							}
+						} else {
+							relation = "Prerequisite"
+						}
 					}
 					ref := PathStepRef{
 						Step:      step.Index,
 						Hop:       hop,
 						Offset:    offset,
+						Relation:  relation,
 						Scope:     step.Scope,
 						Title:     step.GuideID,
 						IsCurrent: isCurr,
@@ -446,21 +462,27 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 		var downstreamRefs []PathStepRef
 		isTerminal := false
 
-		unlocksResult, err := graph.UnlocksPath(gf.guide.ID, guidesMap, config, graph.PathOptions{
+		subsequentResult, err := graph.SubsequentPath(gf.guide.ID, guidesMap, config, graph.PathOptions{
 			IncludeSubguides: true,
 		})
 		if err != nil {
 			if opts.WarnFunc != nil {
-				opts.WarnFunc("warning: skipping unlocks path for %s: %v\n", gf.guide.ID, err)
+				opts.WarnFunc("warning: skipping subsequent path for %s: %v\n", gf.guide.ID, err)
 			}
-		} else if unlocksResult != nil {
-			if len(unlocksResult.Steps) <= 1 {
+		} else if subsequentResult != nil {
+			if len(subsequentResult.Steps) <= 1 {
 				isTerminal = true
 			} else {
-				for _, step := range unlocksResult.Steps {
+				parentsOfCurrent := make(map[string]bool)
+				for _, p := range graphIndex.GetParentGuides(gf.guide.ID) {
+					parentsOfCurrent[p] = true
+				}
+
+				for _, step := range subsequentResult.Steps {
 					isCurr := step.GuideID == gf.guide.ID
 					hop := 0
 					offset := template.HTML("Current")
+					relation := "Current"
 					if !isCurr {
 						depth := visitedDown[step.GuideID]
 						if depth == 0 {
@@ -468,11 +490,21 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 						}
 						hop = depth
 						offset = template.HTML(fmt.Sprintf("+%d", depth))
+						if depth == 1 {
+							if parentsOfCurrent[step.GuideID] {
+								relation = "Parent"
+							} else {
+								relation = "Subsequent"
+							}
+						} else {
+							relation = "Subsequent"
+						}
 					}
 					ref := PathStepRef{
 						Step:      step.Index,
 						Hop:       hop,
 						Offset:    offset,
+						Relation:  relation,
 						Scope:     step.Scope,
 						Title:     step.GuideID,
 						IsCurrent: isCurr,
@@ -497,6 +529,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			currentRef := PathStepRef{
 				Offset:    template.HTML("Current"),
 				Hop:       0,
+				Relation:  "Current",
 				Scope:     gf.guide.Metadata.Scope,
 				Title:     gf.guide.ID,
 				IsCurrent: true,
