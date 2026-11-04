@@ -64,7 +64,7 @@ This document tracks active refactoring, deduplication, and architectural simpli
 
 - [x] **Topological Sort & Prerequisite Closure Engine**:
   - *Location*: `internal/graph/solver.go`, `internal/graph/solver_test.go`
-  - *Details*: Implemented Kahn's algorithm with deterministic tie-breaking by scope tier, parent narrative order (segment line numbers and declaration indices), and guide IDs. Provides `TopologicalSort`, `PrerequisitePath`, and `UnlocksPath`.
+  - *Details*: Implemented Kahn's algorithm with deterministic tie-breaking by scope tier, parent narrative order (segment line numbers and declaration indices), and guide IDs. Provides `TopologicalSort`, `PrerequisitePath`, and `SubsequentPath`.
 - [x] **Learning Path CLI Command (`qst path`)**:
   - *Location*: `cmd/path.go`, `cmd/commands_test.go`, `docs/cli/qst_path.md`
-  - *Details*: Introduced `qst path [guide]` with support for targeted learning paths, global scope-partitioned syllabi, downstream unlock exploration (`--unlocks`), Mermaid diagram output (`--format mermaid`), JSON serialization (`--format json`), and direct tour persistence (`--save-tour`).
+  - *Details*: Introduced `qst path [guide]` with support for targeted learning paths, global scope-partitioned syllabi, downstream subsequent guide exploration (`--subsequent`), Mermaid diagram output (`--format mermaid`), JSON serialization (`--format json`), and direct tour persistence (`--save-tour`).
