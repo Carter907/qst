@@ -13,7 +13,7 @@ var (
 	pathDir         string
 	pathPrereqsOnly bool
 	pathDirect      bool
-	pathUnlocks     bool
+	pathSubsequent  bool
 	pathFormat      string
 	pathSaveTour    string
 	pathVerbose     bool
@@ -41,8 +41,8 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming
 # Output learning path as a Mermaid diagram
 qst path "Variables and Assignment" -d examples/C_programming --format mermaid
 
-# Discover what topics a foundational guide unlocks
-qst path "Variable" -d examples/C_programming --unlocks
+# Discover subsequent guides dependent on a foundational guide
+qst path "Variable" -d examples/C_programming --subsequent
 
 # Generate full syllabus for the entire knowledge graph
 qst path -d examples/C_programming
@@ -76,17 +76,17 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 		}
 
 		var learningPath *graph.LearningPath
-		if pathUnlocks {
+		if pathSubsequent {
 			if targetGuideName == "" {
-				return fmt.Errorf("a target guide name is required when using --unlocks")
+				return fmt.Errorf("a target guide name is required when using --subsequent")
 			}
 			resolved, _, err := resolveGuide(pathDir, targetGuideName)
 			if err != nil {
 				return fmt.Errorf("target guide '%s' not found: %w", targetGuideName, err)
 			}
-			learningPath, err = graph.UnlocksPath(resolved.ID, guides, config, opts)
+			learningPath, err = graph.SubsequentPath(resolved.ID, guides, config, opts)
 			if err != nil {
-				return fmt.Errorf("failed to compute unlocks path: %w", err)
+				return fmt.Errorf("failed to compute subsequent path: %w", err)
 			}
 		} else if targetGuideName != "" {
 			resolved, _, err := resolveGuide(pathDir, targetGuideName)
@@ -134,7 +134,7 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 			return nil
 
 		case "text", "":
-			printPathText(cmd, learningPath, config, targetGuideName, pathUnlocks, pathVerbose)
+			printPathText(cmd, learningPath, config, targetGuideName, pathSubsequent, pathVerbose)
 			return nil
 
 		default:
@@ -143,7 +143,7 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 	}),
 }
 
-func printPathText(cmd *cobra.Command, path *graph.LearningPath, config graph.Manifest, target string, unlocks bool, verbose bool) {
+func printPathText(cmd *cobra.Command, path *graph.LearningPath, config graph.Manifest, target string, subsequent bool, verbose bool) {
 	if len(path.Steps) == 0 {
 		cmd.Println("No guides in learning path.")
 		return
@@ -154,8 +154,8 @@ func printPathText(cmd *cobra.Command, path *graph.LearningPath, config graph.Ma
 		title = "Knowledge Graph"
 	}
 
-	if unlocks {
-		cmd.Printf("Guides unlocked by '%s' (%d guides):\n", target, len(path.Steps))
+	if subsequent {
+		cmd.Printf("Subsequent guides dependent on '%s' (%d guides):\n", target, len(path.Steps))
 		cmd.Println(strings.Repeat("-", 60))
 	} else if target != "" {
 		cmd.Printf("Learning path for '%s' (%d guides):\n", target, len(path.Steps))
@@ -268,7 +268,11 @@ func init() {
 	pathCmd.Flags().StringVarP(&pathDir, "dir", "d", ".", "Knowledge graph directory")
 	pathCmd.Flags().BoolVar(&pathPrereqsOnly, "prereqs-only", false, "Only follow horizontal prerequisites, ignoring subguides")
 	pathCmd.Flags().BoolVar(&pathDirect, "direct", false, "Only include immediate 1-hop prerequisites")
-	pathCmd.Flags().BoolVar(&pathUnlocks, "unlocks", false, "Discover downstream guides unlocked by the target")
+	pathCmd.Flags().BoolVar(&pathSubsequent, "subsequent", false, "Discover downstream guides dependent on the target")
+	pathCmd.Flags().BoolVar(&pathSubsequent, "unlocks", false, "Discover downstream guides dependent on the target (deprecated alias for --subsequent)")
+	if err := pathCmd.Flags().MarkHidden("unlocks"); err != nil {
+		panic(err)
+	}
 	pathCmd.Flags().StringVar(&pathFormat, "format", "text", "Output format: text, json, mermaid")
 	pathCmd.Flags().StringVar(&pathSaveTour, "save-tour", "", "Save the resulting path as a tour in manifest.yaml")
 	pathCmd.Flags().BoolVarP(&pathVerbose, "verbose", "v", false, "Show dependency reasons and requirements per step")

@@ -1133,16 +1133,25 @@ func TestPathCommand(t *testing.T) {
 		t.Errorf("expected Mermaid flowchart output, got: %s", out)
 	}
 
-	// 5. Unlocks mode
-	out, exitCode, err = executeCommandWithExit("path", "Def 1", "--dir", dir, "--unlocks")
+	// 5. Subsequent mode
+	out, exitCode, err = executeCommandWithExit("path", "Def 1", "--dir", dir, "--subsequent")
 	if err != nil || exitCode != 0 {
-		t.Fatalf("path unlocks failed: code=%d err=%v out=%s", exitCode, err, out)
+		t.Fatalf("path subsequent failed: code=%d err=%v out=%s", exitCode, err, out)
 	}
-	if !strings.Contains(out, "Guides unlocked by 'Def 1'") {
-		t.Errorf("expected unlocks header, got: %s", out)
+	if !strings.Contains(out, "Subsequent guides dependent on 'Def 1'") {
+		t.Errorf("expected subsequent header, got: %s", out)
 	}
 	if !strings.Contains(out, "Desc 1") {
-		t.Errorf("expected unlocked guide Desc 1 in output, got: %s", out)
+		t.Errorf("expected subsequent guide Desc 1 in output, got: %s", out)
+	}
+
+	// 5b. Unlocks mode (deprecated alias)
+	out, exitCode, err = executeCommandWithExit("path", "Def 1", "--dir", dir, "--unlocks")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("path unlocks alias failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	if !strings.Contains(out, "Subsequent guides dependent on 'Def 1'") {
+		t.Errorf("expected subsequent header via --unlocks alias, got: %s", out)
 	}
 
 	// 6. Save Tour
