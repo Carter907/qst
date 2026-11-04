@@ -130,7 +130,7 @@ func TestPrerequisitePath_Isolation(t *testing.T) {
 	}
 }
 
-func TestUnlocksPath(t *testing.T) {
+func TestSubsequentPath(t *testing.T) {
 	guides := map[string]Guide{
 		"Base":  {ID: "Base", Metadata: GuideMetadata{Scope: "definition"}},
 		"Next1": {ID: "Next1", Metadata: GuideMetadata{Scope: "definition", Prerequisites: []string{"Base"}}},
@@ -139,7 +139,7 @@ func TestUnlocksPath(t *testing.T) {
 	}
 	config := Manifest{Scopes: []string{"definition"}}
 
-	path, err := UnlocksPath("Base", guides, config, PathOptions{})
+	path, err := SubsequentPath("Base", guides, config, PathOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -152,6 +152,15 @@ func TestUnlocksPath(t *testing.T) {
 		if step.GuideID != expected[i] {
 			t.Errorf("step %d: expected %s, got %s", i+1, expected[i], step.GuideID)
 		}
+	}
+
+	// Verify deprecated UnlocksPath alias produces identical results
+	legacyPath, err := UnlocksPath("Base", guides, config, PathOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error from UnlocksPath: %v", err)
+	}
+	if len(legacyPath.Steps) != len(path.Steps) {
+		t.Fatalf("expected identical length, got %d vs %d", len(legacyPath.Steps), len(path.Steps))
 	}
 }
 
