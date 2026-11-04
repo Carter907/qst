@@ -273,3 +273,61 @@ func TestFormatGuideNodeLabel(t *testing.T) {
 	}
 }
 
+func TestBuildGuideMermaid_NarrativeOrdering(t *testing.T) {
+	guide := graph.Guide{
+		ID: "Parent Guide",
+		Metadata: graph.GuideMetadata{
+			Scope: "explanation",
+			Prerequisites: []string{
+				"Prereq Zebra",
+				"Prereq Apple",
+			},
+			SubGuides: []graph.SubGuideRelation{
+				{Guide: "Sub Zebra", Segment: "5-10"},
+				{Guide: "Sub Apple", Segment: "20-30"},
+				{Guide: "Sub Middle", Segment: "12-15"},
+				{Guide: "Sub Unsegmented Two"},
+				{Guide: "Sub Unsegmented One"},
+			},
+		},
+	}
+
+	getScope := func(id string) string {
+		return "definition"
+	}
+
+	diag := BuildGuideMermaid(guide, getScope, MermaidOptions{
+		MarkdownWrap:     false,
+		RequireNeighbors: false,
+	})
+
+	// 1. Prerequisites should appear in frontmatter order: Zebra before Apple
+	posPrereqZ := strings.Index(diag, "prereq_zebra --> parent_guide")
+	posPrereqA := strings.Index(diag, "prereq_apple --> parent_guide")
+	if posPrereqZ == -1 || posPrereqA == -1 {
+		t.Fatalf("missing prerequisite edges in diagram:\n%s", diag)
+	}
+	if posPrereqZ >= posPrereqA {
+		t.Errorf("expected Prereq Zebra (pos %d) before Prereq Apple (pos %d) in frontmatter order", posPrereqZ, posPrereqA)
+	}
+
+	// 2. Sub-guides should appear in narrative start-line order:
+	// "Sub Zebra" (5-10) -> "Sub Middle" (12-15) -> "Sub Apple" (20-30)
+	// followed by unsegmented: "Sub Unsegmented Two" -> "Sub Unsegmented One"
+	edgeSection := diag[strings.Index(diag, "parent_guide -.->"):]
+	posSubZ := strings.Index(edgeSection, "sub_zebra")
+	posSubM := strings.Index(edgeSection, "sub_middle")
+	posSubA := strings.Index(edgeSection, "sub_apple")
+	posSubU2 := strings.Index(edgeSection, "sub_unsegmented_two")
+	posSubU1 := strings.Index(edgeSection, "sub_unsegmented_one")
+
+	if posSubZ == -1 || posSubM == -1 || posSubA == -1 || posSubU2 == -1 || posSubU1 == -1 {
+		t.Fatalf("missing subguide edges in diagram:\n%s", diag)
+	}
+
+	if !(posSubZ < posSubM && posSubM < posSubA && posSubA < posSubU2 && posSubU2 < posSubU1) {
+		t.Errorf("expected narrative order Zebra (5) < Middle (12) < Apple (20) < UnsegTwo < UnsegOne, got pos: Z=%d, M=%d, A=%d, U2=%d, U1=%d",
+			posSubZ, posSubM, posSubA, posSubU2, posSubU1)
+	}
+}
+

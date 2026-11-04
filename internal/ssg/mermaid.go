@@ -2,6 +2,7 @@ package ssg
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"sort"
 	"strings"
@@ -153,10 +154,55 @@ func GenerateGlobalMermaid(guides map[string]graph.Guide) string {
 	return sb.String()
 }
 
+// sortSubGuidesByNarrative orders sub-guides so that segmented guides appear first
+// sorted by their start line (top-to-bottom reading order in the document), followed
+// by unsegmented sub-guides in their original frontmatter declaration order.
+func sortSubGuidesByNarrative(subguides []graph.SubGuideRelation) []graph.SubGuideRelation {
+	type subItem struct {
+		rel       graph.SubGuideRelation
+		startLine int
+		index     int
+	}
+
+	items := make([]subItem, len(subguides))
+	for i, s := range subguides {
+		startLine := math.MaxInt
+		if s.Segment != "" {
+			if ranges, err := graph.ParseSegments(s.Segment); err == nil && len(ranges) > 0 {
+				minStart := ranges[0][0]
+				for _, r := range ranges[1:] {
+					if r[0] < minStart {
+						minStart = r[0]
+					}
+				}
+				startLine = minStart
+			}
+		}
+		items[i] = subItem{
+			rel:       s,
+			startLine: startLine,
+			index:     i,
+		}
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].startLine != items[j].startLine {
+			return items[i].startLine < items[j].startLine
+		}
+		return items[i].index < items[j].index
+	})
+
+	sorted := make([]graph.SubGuideRelation, len(items))
+	for i, item := range items {
+		sorted[i] = item.rel
+	}
+	return sorted
+}
+
 // BuildGuideMermaid generates a localized 1-hop Mermaid diagram for a guide.
 func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts MermaidOptions) string {
 	prereqs := guide.Metadata.Prerequisites
-	subguides := guide.Metadata.SubGuides
+	subguides := sortSubGuidesByNarrative(guide.Metadata.SubGuides)
 	isFoundational := len(prereqs) == 0 && len(subguides) == 0
 	if opts.RequireNeighbors && isFoundational && len(opts.Dependents) == 0 && len(opts.ParentGuides) == 0 {
 		return ""
@@ -186,11 +232,44 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 		}
 	}
 
+	// Order nodes deterministically:
+	// 1. Prerequisites (in author frontmatter order)
+	// 2. Current guide (center rank)
+	// 3. Sub-guides (in narrative reading order)
+	// 4. Foundational connections (dependents, parent guides)
 	var ids []string
-	for id := range seen {
-		ids = append(ids, id)
+	addID := func(id string) {
+		if seen[id] {
+			ids = append(ids, id)
+			delete(seen, id)
+		}
 	}
-	sort.Strings(ids)
+
+	for _, p := range prereqs {
+		addID(p)
+	}
+	addID(guide.ID)
+	for _, s := range subguides {
+		addID(s.Guide)
+	}
+	if isFoundational {
+		for _, d := range opts.Dependents {
+			addID(d)
+		}
+		for _, p := range opts.ParentGuides {
+			addID(p)
+		}
+	}
+	if len(seen) > 0 {
+		var rem []string
+		for id := range seen {
+			rem = append(rem, id)
+		}
+		sort.Strings(rem)
+		for _, id := range rem {
+			addID(id)
+		}
+	}
 
 	// 2. Map guide IDs to unique safe Mermaid node identifiers
 	nodeIDs := buildMermaidNodeIDs(ids)
@@ -222,7 +301,6 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 			}
 		}
 	}
-	sort.Strings(prereqEdges)
 	for _, edge := range prereqEdges {
 		sb.WriteString(edge)
 		sb.WriteString("\n")
@@ -252,7 +330,6 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 			}
 		}
 	}
-	sort.Strings(subEdges)
 	for _, edge := range subEdges {
 		sb.WriteString(edge)
 		sb.WriteString("\n")
@@ -270,7 +347,6 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 				}
 			}
 		}
-		sort.Strings(depEdges)
 		for _, edge := range depEdges {
 			sb.WriteString(edge)
 			sb.WriteString("\n")
@@ -287,7 +363,6 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 				}
 			}
 		}
-		sort.Strings(parentEdges)
 		for _, edge := range parentEdges {
 			sb.WriteString(edge)
 			sb.WriteString("\n")
@@ -309,7 +384,6 @@ func BuildGuideMermaid(guide graph.Guide, getScope func(id string) string, opts 
 			u := (&url.URL{Path: targetURL}).EscapedPath()
 			clickLines = append(clickLines, fmt.Sprintf("    click %s href \"%s\"", nodeID, u))
 		}
-		sort.Strings(clickLines)
 		if len(clickLines) > 0 {
 			sb.WriteString("\n")
 			for _, click := range clickLines {
