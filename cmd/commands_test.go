@@ -1145,15 +1145,6 @@ func TestPathCommand(t *testing.T) {
 		t.Errorf("expected subsequent guide Desc 1 in output, got: %s", out)
 	}
 
-	// 5b. Unlocks mode (deprecated alias)
-	out, exitCode, err = executeCommandWithExit("path", "Def 1", "--dir", dir, "--unlocks")
-	if err != nil || exitCode != 0 {
-		t.Fatalf("path unlocks alias failed: code=%d err=%v out=%s", exitCode, err, out)
-	}
-	if !strings.Contains(out, "Subsequent guides dependent on 'Def 1'") {
-		t.Errorf("expected subsequent header via --unlocks alias, got: %s", out)
-	}
-
 	// 6. Save Tour
 	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir, "--save-tour", "Auto Desc Tour")
 	if err != nil || exitCode != 0 {

@@ -189,7 +189,7 @@ func printPathText(cmd *cobra.Command, path *graph.LearningPath, config graph.Ma
 		return
 	}
 
-	// Single target or unlocks path: print numbered table
+	// Single target or subsequent path: print numbered table
 	cmd.Printf("%-5s %-15s %s\n", "Step", "Scope", "Guide")
 	for _, step := range path.Steps {
 		scopeStr := step.Scope
@@ -269,10 +269,6 @@ func init() {
 	pathCmd.Flags().BoolVar(&pathPrereqsOnly, "prereqs-only", false, "Only follow horizontal prerequisites, ignoring subguides")
 	pathCmd.Flags().BoolVar(&pathDirect, "direct", false, "Only include immediate 1-hop prerequisites")
 	pathCmd.Flags().BoolVar(&pathSubsequent, "subsequent", false, "Discover downstream guides dependent on the target")
-	pathCmd.Flags().BoolVar(&pathSubsequent, "unlocks", false, "Discover downstream guides dependent on the target (deprecated alias for --subsequent)")
-	if err := pathCmd.Flags().MarkHidden("unlocks"); err != nil {
-		panic(err)
-	}
 	pathCmd.Flags().StringVar(&pathFormat, "format", "text", "Output format: text, json, mermaid")
 	pathCmd.Flags().StringVar(&pathSaveTour, "save-tour", "", "Save the resulting path as a tour in manifest.yaml")
 	pathCmd.Flags().BoolVarP(&pathVerbose, "verbose", "v", false, "Show dependency reasons and requirements per step")
