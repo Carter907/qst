@@ -30,8 +30,8 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming
 # Output learning path as a Mermaid diagram
 qst path "Variables and Assignment" -d examples/C_programming --format mermaid
 
-# Discover what topics a foundational guide unlocks
-qst path "Variable" -d examples/C_programming --unlocks
+# Discover subsequent guides dependent on a foundational guide
+qst path "Variable" -d examples/C_programming --subsequent
 
 # Generate full syllabus for the entire knowledge graph
 qst path -d examples/C_programming
@@ -49,7 +49,7 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
   -h, --help               help for path
       --prereqs-only       Only follow horizontal prerequisites, ignoring subguides
       --save-tour string   Save the resulting path as a tour in manifest.yaml
-      --unlocks            Discover downstream guides unlocked by the target
+      --subsequent         Discover downstream guides dependent on the target
   -v, --verbose            Show dependency reasons and requirements per step
 ```
 
