@@ -47,7 +47,7 @@ type PageData struct {
 	HasDistantSteps bool
 	LearningPath    []PathStepRef
 	IsFoundational  bool
-	UnlockedPath    []PathStepRef
+	SubsequentPath  []PathStepRef
 	IsTerminal      bool
 }
 
@@ -458,7 +458,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			}
 		}
 
-		var unlockedPath []PathStepRef
+		var subsequentPath []PathStepRef
 		var downstreamRefs []PathStepRef
 		isTerminal := false
 
@@ -512,7 +512,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 					if target, ok := filesByID[step.GuideID]; ok {
 						ref.URL = relURL(gf.outRelPath, target.outRelPath)
 					}
-					unlockedPath = append(unlockedPath, ref)
+					subsequentPath = append(subsequentPath, ref)
 					if !isCurr {
 						downstreamRefs = append(downstreamRefs, ref)
 					}
@@ -540,7 +540,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			fullTrajectory = append(fullTrajectory, currentRef)
 			fullTrajectory = append(fullTrajectory, downstreamRefs...)
 
-			// Horizon: Direct Prereqs (Hop == -1) -> Current -> Direct Unlocks (Hop == 1)
+			// Horizon: Direct Prereqs (Hop == -1) -> Current -> Direct Subsequent (Hop == 1)
 			for _, ref := range upstreamRefs {
 				if ref.Hop == -1 {
 					horizonPath = append(horizonPath, ref)
@@ -574,7 +574,7 @@ func BuildSiteWithOptions(opts BuildOptions) error {
 			HasDistantSteps: hasDistantSteps,
 			LearningPath:    learningPath,
 			IsFoundational:  isFoundational,
-			UnlockedPath:    unlockedPath,
+			SubsequentPath:  subsequentPath,
 			IsTerminal:      isTerminal,
 		}
 

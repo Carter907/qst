@@ -564,9 +564,9 @@ Peer text.
 		t.Errorf("BaseConcept.html missing +1 offset cell")
 	}
 	if !strings.Contains(baseHTML, "href=\"intermediate/IntermediateConcept.html\"") {
-		t.Errorf("BaseConcept.html missing unlocked link to intermediate/IntermediateConcept.html")
+		t.Errorf("BaseConcept.html missing subsequent link to intermediate/IntermediateConcept.html")
 	}
-	// Has distant unlock (hop +2), so details dropdown should be present with complete trajectory
+	// Has distant subsequent guide (hop +2), so details dropdown should be present with complete trajectory
 	if !strings.Contains(baseHTML, "appendix-trajectory-details") {
 		t.Errorf("BaseConcept.html missing appendix-trajectory-details")
 	}
@@ -577,7 +577,7 @@ Peer text.
 		t.Errorf("BaseConcept.html missing +2 offset in full trajectory")
 	}
 	if !strings.Contains(baseHTML, "href=\"AdvancedConcept.html\"") {
-		t.Errorf("BaseConcept.html missing unlocked link to AdvancedConcept.html")
+		t.Errorf("BaseConcept.html missing subsequent link to AdvancedConcept.html")
 	}
 	if !strings.Contains(baseHTML, "<figure class=\"appendix-figure\">") {
 		t.Errorf("BaseConcept.html missing forward localized concept horizon figure")
