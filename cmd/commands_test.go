@@ -1165,3 +1165,18 @@ func TestPathCommand(t *testing.T) {
 		t.Errorf("expected exit code 1 for non-existent guide, got %d (out: %s)", exitCode, out)
 	}
 }
+
+func TestVersionFlag(t *testing.T) {
+	prevVersion := rootCmd.Version
+	defer func() { rootCmd.Version = prevVersion }()
+
+	SetVersionInfo("v1.2.3", "abc1234", "2026-11-13T00:00:00Z")
+	out, exitCode, err := executeCommandWithExit("--version")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("--version failed: code=%d err=%v out=%s", exitCode, err, out)
+	}
+	want := "qst v1.2.3 (commit abc1234, built 2026-11-13T00:00:00Z)"
+	if !strings.Contains(out, want) {
+		t.Errorf("expected version output %q, got %q", want, out)
+	}
+}

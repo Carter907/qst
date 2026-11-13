@@ -1,6 +1,18 @@
 # Installation
 
-qst cli can run on all major operating systems as long as you have go installed and can clone this repository.
+## Prebuilt Binaries (GitHub Releases)
+
+Prebuilt static binaries for Linux, macOS, and Windows (`amd64` and `arm64`) are published on the [GitHub Releases](https://github.com/Carter907/qst/releases) page.
+
+1. Download the archive for your platform (`qst_<version>_<os>_<arch>.tar.gz` or `.zip` on Windows) along with `checksums.txt`.
+2. Verify the checksum:
+   - **macOS / Linux**: `sha256sum -c --ignore-missing checksums.txt`
+   - **Windows (PowerShell)**: `Get-FileHash .\qst_*.zip -Algorithm SHA256`
+3. Extract the archive and move `qst` (or `qst.exe`) into a directory on your `PATH`.
+
+## Building from Source
+
+`qst` cli can run on all major operating systems as long as you have Go installed and can clone this repository.
 
 **Install locally using `go build`**:
 

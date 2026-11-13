@@ -6,6 +6,7 @@ specifies base commands and flags for quest cli
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -30,6 +31,21 @@ func Root() *cobra.Command {
 	return rootCmd
 }
 
+// SetVersionInfo sets build metadata on the root Cobra command for --version output.
+func SetVersionInfo(version, commit, date string) {
+	if version == "" {
+		version = "dev"
+	}
+	if commit == "" {
+		commit = "none"
+	}
+	if date == "" {
+		date = "unknown"
+	}
+	rootCmd.Version = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
+	rootCmd.SetVersionTemplate("{{.Name}} {{.Version}}\n")
+}
+
 // runWithExit wraps a command handler returning an error so any returned error is printed
 // to the command's standard error channel and triggers exitFunc(1).
 func runWithExit(fn func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) {
@@ -44,4 +60,5 @@ func runWithExit(fn func(cmd *cobra.Command, args []string) error) func(cmd *cob
 func init() {
 	rootCmd.SetOut(os.Stdout)
 	rootCmd.SetErr(os.Stderr)
+	SetVersionInfo("dev", "none", "unknown")
 }

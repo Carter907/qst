@@ -19,8 +19,11 @@ In `qst`, knowledge is written as Markdown **Guides** connected in a **Directed 
 
 ## Installation
 
-### Prerequisites
-- Go 1.22 or later
+### Prebuilt Binaries (GitHub Releases)
+Download the archive for your OS and architecture from the [Releases](https://github.com/Carter907/qst/releases) page, verify it against `checksums.txt`, and place the `qst` binary on your `PATH`.
+
+### Prerequisites (Building from Source)
+- Go 1.27 or later
 
 ### Install via `go install`
 ```sh
