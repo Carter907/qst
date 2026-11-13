@@ -238,7 +238,7 @@ func generatePathMermaid(path *graph.LearningPath, guides map[string]graph.Guide
 		if scopeLabel != "" {
 			scopeLabel = fmt.Sprintf("<br/><i>(%s)</i>", scopeLabel)
 		}
-		sb.WriteString(fmt.Sprintf("    %s[\"%s%s\"]\n", nodeID, step.GuideID, scopeLabel))
+		fmt.Fprintf(&sb, "    %s[\"%s%s\"]\n", nodeID, step.GuideID, scopeLabel)
 	}
 	sb.WriteString("\n")
 
@@ -250,13 +250,13 @@ func generatePathMermaid(path *graph.LearningPath, guides map[string]graph.Guide
 		for _, p := range g.Metadata.Prerequisites {
 			if pathSet[p] {
 				prereqNodeID := cleanID(p)
-				sb.WriteString(fmt.Sprintf("    %s --> %s\n", prereqNodeID, currNodeID))
+				fmt.Fprintf(&sb, "    %s --> %s\n", prereqNodeID, currNodeID)
 			}
 		}
 		for _, s := range g.Metadata.SubGuides {
 			if pathSet[s.Guide] {
 				subNodeID := cleanID(s.Guide)
-				sb.WriteString(fmt.Sprintf("    %s -.-> %s\n", subNodeID, currNodeID))
+				fmt.Fprintf(&sb, "    %s -.-> %s\n", subNodeID, currNodeID)
 			}
 		}
 	}

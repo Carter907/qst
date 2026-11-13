@@ -325,7 +325,7 @@ func TestBuildGuideMermaid_NarrativeOrdering(t *testing.T) {
 		t.Fatalf("missing subguide edges in diagram:\n%s", diag)
 	}
 
-	if !(posSubZ < posSubM && posSubM < posSubA && posSubA < posSubU2 && posSubU2 < posSubU1) {
+	if posSubZ >= posSubM || posSubM >= posSubA || posSubA >= posSubU2 || posSubU2 >= posSubU1 {
 		t.Errorf("expected narrative order Zebra (5) < Middle (12) < Apple (20) < UnsegTwo < UnsegOne, got pos: Z=%d, M=%d, A=%d, U2=%d, U1=%d",
 			posSubZ, posSubM, posSubA, posSubU2, posSubU1)
 	}

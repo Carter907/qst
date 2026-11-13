@@ -670,7 +670,7 @@ Peer text.
 	if posBase == -1 || posMid == -1 || posAdv == -1 {
 		t.Fatalf("Failed to locate step links in AdvancedConcept.html (posBase=%d, posMid=%d, posAdv=%d)", posBase, posMid, posAdv)
 	}
-	if !(posBase < posMid && posMid < posAdv) {
+	if posBase >= posMid || posMid >= posAdv {
 		t.Errorf("Expected topological sequence Base < Mid < Adv, but got posBase=%d, posMid=%d, posAdv=%d", posBase, posMid, posAdv)
 	}
 
