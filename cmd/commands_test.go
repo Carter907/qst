@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -80,55 +82,123 @@ Line 3 has Def 1 reference.
 	return dir
 }
 
-func executeCommandWithExit(args ...string) (string, int, error) {
-	var exitCode int
-	oldExit := exitFunc
-	exitFunc = func(code int) {
-		exitCode = code
+type exitPanic int
+
+type commandResult struct {
+	Stdout   string
+	Stderr   string
+	Combined string
+	ExitCode int
+	Err      error
+}
+
+type syncCaptureWriter struct {
+	mu       *sync.Mutex
+	stream   *bytes.Buffer
+	combined *bytes.Buffer
+	onWrite  func(streamContent string)
+}
+
+func (w *syncCaptureWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	w.stream.Write(p)
+	w.combined.Write(p)
+	var snapshot string
+	if w.onWrite != nil {
+		snapshot = w.stream.String()
 	}
-	defer func() { exitFunc = oldExit }()
+	w.mu.Unlock()
 
-	buf := new(bytes.Buffer)
-	rootCmd.SetOut(buf)
-	rootCmd.SetErr(buf)
-	rootCmd.SetArgs(args)
+	if w.onWrite != nil {
+		w.onWrite(snapshot)
+	}
+	return len(p), nil
+}
 
-	ctx := rootCmd.Context()
+func resetCommandTree(c *cobra.Command, ctx context.Context) {
+	c.SetContext(ctx)
+	resetFlag := func(f *pflag.Flag) {
+		f.Changed = false
+		if sv, ok := f.Value.(pflag.SliceValue); ok {
+			_ = sv.Replace(nil)
+			if f.DefValue != "" && f.DefValue != "[]" {
+				_ = f.Value.Set(strings.Trim(f.DefValue, "[]"))
+			}
+		} else {
+			_ = f.Value.Set(f.DefValue)
+		}
+	}
+	c.Flags().VisitAll(resetFlag)
+	c.PersistentFlags().VisitAll(resetFlag)
+	for _, sub := range c.Commands() {
+		resetCommandTree(sub, ctx)
+	}
+}
+
+func executeCommandWithHook(ctx context.Context, onStdout func(string), args ...string) (res commandResult) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Reset all command flags and contexts recursively so state does not leak between test invocations
-	var resetCmd func(c *cobra.Command)
-	resetCmd = func(c *cobra.Command) {
-		c.SetContext(ctx)
-		resetFlag := func(f *pflag.Flag) {
-			f.Changed = false
-			if sv, ok := f.Value.(pflag.SliceValue); ok {
-				_ = sv.Replace(nil)
+	oldExit := exitFunc
+	exitFunc = func(code int) {
+		panic(exitPanic(code))
+	}
+	defer func() {
+		exitFunc = oldExit
+		rootCmd.SetOut(os.Stdout)
+		rootCmd.SetErr(os.Stderr)
+		rootCmd.SetArgs(nil)
+		resetCommandTree(rootCmd, context.Background())
+	}()
+
+	var mu sync.Mutex
+	var stdoutBuf, stderrBuf, combinedBuf bytes.Buffer
+	outW := &syncCaptureWriter{mu: &mu, stream: &stdoutBuf, combined: &combinedBuf, onWrite: onStdout}
+	errW := &syncCaptureWriter{mu: &mu, stream: &stderrBuf, combined: &combinedBuf}
+
+	rootCmd.SetOut(outW)
+	rootCmd.SetErr(errW)
+	rootCmd.SetArgs(args)
+	resetCommandTree(rootCmd, ctx)
+
+	defer func() {
+		if r := recover(); r != nil {
+			if code, ok := r.(exitPanic); ok {
+				res.ExitCode = int(code)
 			} else {
-				_ = f.Value.Set(f.DefValue)
+				panic(r)
 			}
 		}
-		c.Flags().VisitAll(resetFlag)
-		c.PersistentFlags().VisitAll(resetFlag)
-		for _, sub := range c.Commands() {
-			resetCmd(sub)
-		}
-	}
-	resetCmd(rootCmd)
+		mu.Lock()
+		res.Stdout = stdoutBuf.String()
+		res.Stderr = stderrBuf.String()
+		res.Combined = combinedBuf.String()
+		mu.Unlock()
+	}()
 
-	err := rootCmd.ExecuteContext(ctx)
-	return buf.String(), exitCode, err
+	res.Err = rootCmd.ExecuteContext(ctx)
+	return res
+}
+
+func executeCommandContext(ctx context.Context, args ...string) commandResult {
+	return executeCommandWithHook(ctx, nil, args...)
+}
+
+func executeCommandWithExit(args ...string) (string, int, error) {
+	res := executeCommandContext(context.Background(), args...)
+	return res.Combined, res.ExitCode, res.Err
 }
 
 func executeCommand(args ...string) (string, error) {
-	out, exitCode, err := executeCommandWithExit(args...)
-	if err == nil && exitCode != 0 {
-		err = fmt.Errorf("command exited with code %d: %s", exitCode, out)
+	res := executeCommandContext(context.Background(), args...)
+	if res.Err == nil && res.ExitCode != 0 {
+		res.Err = fmt.Errorf("command exited with code %d: %s", res.ExitCode, res.Combined)
 	}
-	return out, err
+	return res.Combined, res.Err
 }
+
+var _ io.Writer = (*syncCaptureWriter)(nil)
 
 func TestInspectCommand(t *testing.T) {
 	dir := setupTestGraph(t)
@@ -903,12 +973,15 @@ func TestInspectCommand_Failures(t *testing.T) {
 	dir := setupTestGraph(t)
 
 	// Failure case 1: Non-existent guide
-	out, exitCode, _ := executeCommandWithExit("inspect", "NonExistentGuide", "--dir", dir)
-	if exitCode != 1 {
-		t.Errorf("expected exitCode 1 for nonexistent guide inspect, got %d", exitCode)
+	res := executeCommandContext(context.Background(), "inspect", "NonExistentGuide", "--dir", dir)
+	if res.ExitCode != 1 {
+		t.Errorf("expected exitCode 1 for nonexistent guide inspect, got %d", res.ExitCode)
 	}
-	if !strings.Contains(out, "Error: guide 'NonExistentGuide' not found") {
-		t.Errorf("expected not found error in inspect output, got: %s", out)
+	if res.Stdout != "" {
+		t.Errorf("expected empty stdout on failure, got: %s", res.Stdout)
+	}
+	if !strings.Contains(res.Stderr, "Error: guide 'NonExistentGuide' not found") {
+		t.Errorf("expected not found error in stderr, got: %s", res.Stderr)
 	}
 
 	// Failure case 2: Guide exists but manifest is missing
@@ -916,12 +989,12 @@ func TestInspectCommand_Failures(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(badDir, "TestGuide.md"), []byte("---\nscope: foo\n---\nBody\n"), 0644); err != nil {
 		t.Fatalf("failed to write test guide: %v", err)
 	}
-	out, exitCode, _ = executeCommandWithExit("inspect", "TestGuide", "--dir", badDir)
-	if exitCode != 1 {
-		t.Errorf("expected exitCode 1 for inspect with missing manifest, got %d", exitCode)
+	res = executeCommandContext(context.Background(), "inspect", "TestGuide", "--dir", badDir)
+	if res.ExitCode != 1 {
+		t.Errorf("expected exitCode 1 for inspect with missing manifest, got %d", res.ExitCode)
 	}
-	if !strings.Contains(out, "Failed to load manifest.yaml:") {
-		t.Errorf("expected 'Failed to load manifest.yaml:' in inspect output, got: %s", out)
+	if !strings.Contains(res.Stderr, "Failed to load manifest.yaml:") {
+		t.Errorf("expected 'Failed to load manifest.yaml:' in stderr, got: %s", res.Stderr)
 	}
 }
 
@@ -1070,18 +1143,20 @@ func TestServeCommand(t *testing.T) {
 		t.Errorf("expected exit code 1 for non-.kng file, got %d (out: %s)", exitCode, out)
 	}
 
-	// 3. Valid graph directory with short-lived context should start and exit cleanly
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+	// 3. Valid graph directory should start, log readiness, and exit cleanly on cancel
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	rootCmd.SetContext(ctx)
-	defer rootCmd.SetContext(context.Background())
 
-	out, exitCode, err := executeCommandWithExit("serve", dir, "--host", "127.0.0.1", "--port", "0", "--offline")
-	if err != nil || exitCode != 0 {
-		t.Fatalf("expected clean exit for serve command, got code=%d err=%v out=%s", exitCode, err, out)
+	res := executeCommandWithHook(ctx, func(stdout string) {
+		if strings.Contains(stdout, "Serving knowledge graph") {
+			cancel()
+		}
+	}, "serve", dir, "--host", "127.0.0.1", "--port", "0", "--offline")
+	if res.Err != nil || res.ExitCode != 0 {
+		t.Fatalf("expected clean exit for serve command, got code=%d err=%v out=%s errOut=%s", res.ExitCode, res.Err, res.Stdout, res.Stderr)
 	}
-	if !strings.Contains(out, "Serving knowledge graph") {
-		t.Errorf("expected 'Serving knowledge graph' output, got: %s", out)
+	if !strings.Contains(res.Stdout, "Serving knowledge graph") {
+		t.Errorf("expected 'Serving knowledge graph' output, got: %s", res.Stdout)
 	}
 }
 
@@ -1116,12 +1191,15 @@ func TestPathCommand(t *testing.T) {
 	}
 
 	// 3. Format JSON
-	out, exitCode, err = executeCommandWithExit("path", "Desc 1", "--dir", dir, "--format", "json")
-	if err != nil || exitCode != 0 {
-		t.Fatalf("path json failed: code=%d err=%v out=%s", exitCode, err, out)
+	jsonRes := executeCommandContext(context.Background(), "path", "Desc 1", "--dir", dir, "--format", "json")
+	if jsonRes.Err != nil || jsonRes.ExitCode != 0 {
+		t.Fatalf("path json failed: code=%d err=%v out=%s", jsonRes.ExitCode, jsonRes.Err, jsonRes.Combined)
 	}
-	if !strings.Contains(out, `"guide_id": "Desc 1"`) || !strings.Contains(out, `"guide_id": "Def 1"`) {
-		t.Errorf("expected JSON output containing guide IDs, got: %s", out)
+	if jsonRes.Stderr != "" {
+		t.Errorf("expected empty stderr for path json, got: %s", jsonRes.Stderr)
+	}
+	if !strings.Contains(jsonRes.Stdout, `"guide_id": "Desc 1"`) || !strings.Contains(jsonRes.Stdout, `"guide_id": "Def 1"`) {
+		t.Errorf("expected JSON output containing guide IDs, got: %s", jsonRes.Stdout)
 	}
 
 	// 4. Format Mermaid
@@ -1167,8 +1245,7 @@ func TestPathCommand(t *testing.T) {
 }
 
 func TestVersionFlag(t *testing.T) {
-	prevVersion := rootCmd.Version
-	defer func() { rootCmd.Version = prevVersion }()
+	defer SetVersionInfo("dev", "none", "unknown")
 
 	SetVersionInfo("v1.2.3", "abc1234", "2026-11-13T00:00:00Z")
 	out, exitCode, err := executeCommandWithExit("--version")
