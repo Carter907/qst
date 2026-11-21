@@ -31,6 +31,7 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
   -d, --dir string              Knowledge graph directory (default ".")
       --file string             Path to file containing initial markdown body
   -h, --help                    help for add
+      --in-place                Insert YAML frontmatter into the file passed to --file in place
   -i, --interactive             Interactive mode
       --prerequisites strings   List of prerequisites
       --scope string            Scope of the guide (e.g. definition, description)

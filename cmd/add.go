@@ -22,6 +22,7 @@ var (
 	addSegment       string
 	addBody          string
 	addFile          string
+	addInPlace       bool
 )
 
 var addCmd = &cobra.Command{
@@ -40,11 +41,19 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := addDir
 		name := resolveGuideAndDir(cmd, args[0], &dir)
+
+		if addInPlace && (!cmd.Flags().Changed("file") || addFile == "") {
+			return fmt.Errorf("Error: --in-place requires --file")
+		}
+
 		filename := filepath.Join(dir, name+".md")
 
-		if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		if addInPlace {
+			filename = addFile
+		} else if _, err := os.Stat(filename); !os.IsNotExist(err) {
 			return fmt.Errorf("Error: %s already exists", filename)
 		}
+
 		config, err := graph.ParseConfig(dir)
 		if err != nil {
 			return fmt.Errorf("Failed to load manifest.yaml config: %w", err)
@@ -158,6 +167,7 @@ func init() {
 	addCmd.Flags().StringVar(&addSegment, "segment", "", "Segment line range in body (e.g. 4-4)")
 	addCmd.Flags().StringVar(&addBody, "body", "", "Initial markdown body for the guide")
 	addCmd.Flags().StringVar(&addFile, "file", "", "Path to file containing initial markdown body")
+	addCmd.Flags().BoolVar(&addInPlace, "in-place", false, "Insert YAML frontmatter into the file passed to --file in place")
 
 	rootCmd.AddCommand(addCmd)
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -69,5 +70,40 @@ func TestAddCommand(t *testing.T) {
 	}
 	if len(desc2.Metadata.SubGuides) != 2 {
 		t.Fatalf("expected 2 subguides in Desc 2, got %d", len(desc2.Metadata.SubGuides))
+	}
+
+	// 7. --in-place without --file should fail
+	out, exitCode, _ = executeCommandWithExit("add", "InPlaceFail", "-d", dir, "--scope", "definition", "--in-place")
+	if exitCode != 1 || !strings.Contains(out, "--in-place requires --file") {
+		t.Errorf("expected exit code 1 and '--in-place requires --file', got %d, out: %s", exitCode, out)
+	}
+
+	// 8. Valid --in-place addition transforming a raw markdown file
+	draftPath := filepath.Join(dir, "RawDraft.md")
+	rawBody := "## Raw Draft\n\nThis is existing body text from draft.\n"
+	if err := os.WriteFile(draftPath, []byte(rawBody), 0644); err != nil {
+		t.Fatalf("failed to write raw draft: %v", err)
+	}
+
+	out, exitCode, err = executeCommandWithExit("add", "RawDraft", "-d", dir, "--file", draftPath, "--in-place", "--scope", "definition", "--tags", "draft,imported")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to add guide in place: %v (code %d, out: %s)", err, exitCode, out)
+	}
+	if !strings.Contains(out, "Successfully added new guide: "+draftPath) {
+		t.Errorf("unexpected output for in-place add: %s", out)
+	}
+
+	transformedGuide, err := graph.ParseGuide(draftPath)
+	if err != nil {
+		t.Fatalf("failed to parse transformed guide: %v", err)
+	}
+	if transformedGuide.Metadata.Scope != "definition" {
+		t.Errorf("expected scope definition, got %s", transformedGuide.Metadata.Scope)
+	}
+	if len(transformedGuide.Metadata.Tags) != 2 || transformedGuide.Metadata.Tags[0] != "draft" || transformedGuide.Metadata.Tags[1] != "imported" {
+		t.Errorf("expected tags [draft, imported], got %v", transformedGuide.Metadata.Tags)
+	}
+	if !strings.Contains(transformedGuide.Body, "This is existing body text from draft.") {
+		t.Errorf("expected original draft content preserved in body, got:\n%s", transformedGuide.Body)
 	}
 }
