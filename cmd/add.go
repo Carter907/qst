@@ -37,29 +37,46 @@ qst add "String Operations.md" --scope description --subguide "String Length.md,
 
 # Add to a specific directory with initial body content
 qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory Layout\n\nExplanation text."`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := addDir
-		rawTarget := args[0]
-		name := resolveGuideAndDir(cmd, rawTarget, &dir)
 
 		if addInPlace && (!cmd.Flags().Changed("file") || addFile == "") {
 			return fmt.Errorf("Error: --in-place requires --file")
 		}
 
-		filename := filepath.Join(dir, name+".md")
-		if rawDir := filepath.Dir(rawTarget); rawDir != "." && rawDir != "" {
-			if filepath.IsAbs(rawDir) || !cmd.Flags().Changed("dir") {
-				filename = filepath.Join(rawDir, name+".md")
-			} else {
-				filename = filepath.Join(dir, rawDir, name+".md")
-			}
-		}
+		var name string
+		var filename string
 
 		if addInPlace {
+			fileGuideName := resolveGuideAndDir(cmd, addFile, &dir)
+			if len(args) == 1 {
+				argName := cleanGuideName(args[0])
+				if argName != fileGuideName {
+					return fmt.Errorf("Error: guide name '%s' does not match --file '%s' when using --in-place", argName, addFile)
+				}
+			}
+			name = fileGuideName
 			filename = addFile
-		} else if _, err := os.Stat(filename); !os.IsNotExist(err) {
-			return fmt.Errorf("Error: %s already exists", filename)
+		} else {
+			if len(args) == 0 {
+				return fmt.Errorf("Error: guide name is required unless --in-place is used")
+			}
+			rawTarget := args[0]
+			name = resolveGuideAndDir(cmd, rawTarget, &dir)
+
+			filename = filepath.Join(dir, name+".md")
+			if rawDir := filepath.Dir(rawTarget); rawDir != "." && rawDir != "" {
+				if filepath.IsAbs(rawDir) || !cmd.Flags().Changed("dir") {
+					filename = filepath.Join(rawDir, name+".md")
+				} else {
+					filename = filepath.Join(dir, rawDir, name+".md")
+				}
+			}
+
+			if _, err := os.Stat(filename); !os.IsNotExist(err) {
+				return fmt.Errorf("Error: %s already exists", filename)
+			}
 		}
 
 		config, err := graph.ParseConfig(dir)

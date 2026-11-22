@@ -106,4 +106,37 @@ func TestAddCommand(t *testing.T) {
 	if !strings.Contains(transformedGuide.Body, "This is existing body text from draft.") {
 		t.Errorf("expected original draft content preserved in body, got:\n%s", transformedGuide.Body)
 	}
+
+	// 9. Missing guide name without --in-place should fail
+	out, exitCode, _ = executeCommandWithExit("add", "-d", dir, "--scope", "definition")
+	if exitCode != 1 || !strings.Contains(out, "guide name is required unless --in-place is used") {
+		t.Errorf("expected exit code 1 and missing guide name error, got %d, out: %s", exitCode, out)
+	}
+
+	// 10. --in-place without [name] should derive name from --file and discover graph root
+	draftNoNamePath := filepath.Join(dir, "InPlaceNoName.md")
+	if err := os.WriteFile(draftNoNamePath, []byte("## In-Place No Name\n\nBody text.\n"), 0644); err != nil {
+		t.Fatalf("failed to write draft file: %v", err)
+	}
+	out, exitCode, err = executeCommandWithExit("add", "--file", draftNoNamePath, "--in-place", "--scope", "definition")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to add guide in place without name: %v (code %d, out: %s)", err, exitCode, out)
+	}
+	noNameGuide, err := graph.ParseGuide(draftNoNamePath)
+	if err != nil {
+		t.Fatalf("failed to parse in-place guide without name: %v", err)
+	}
+	if noNameGuide.Metadata.Scope != "definition" {
+		t.Errorf("expected scope definition, got %s", noNameGuide.Metadata.Scope)
+	}
+
+	// 11. --in-place with a mismatched [name] should fail
+	mismatchPath := filepath.Join(dir, "MismatchDraft.md")
+	if err := os.WriteFile(mismatchPath, []byte("## Mismatch\n"), 0644); err != nil {
+		t.Fatalf("failed to write mismatch draft: %v", err)
+	}
+	out, exitCode, _ = executeCommandWithExit("add", "DifferentName", "-d", dir, "--file", mismatchPath, "--in-place", "--scope", "definition")
+	if exitCode != 1 || !strings.Contains(out, "does not match --file") {
+		t.Errorf("expected exit code 1 and mismatch error, got %d, out: %s", exitCode, out)
+	}
 }
