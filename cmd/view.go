@@ -45,14 +45,15 @@ qst view . > graph.md`,
 			targetGuide = cleanGuideName(targetGuide)
 		}
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
 		if targetGuide != "" {
-			if _, exists := guides[targetGuide]; !exists {
-				return fmt.Errorf("Error: guide '%s' not found in graph", targetGuide)
+			if _, err := lookupGuide(res, targetGuide); err != nil {
+				return fmt.Errorf("Error: %w", err)
 			}
 			config, err := graph.ParseConfig(dir)
 			if err != nil {

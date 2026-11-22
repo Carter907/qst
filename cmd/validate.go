@@ -24,10 +24,14 @@ qst validate my_knowledge_graph_dir/`,
 			dir = args[0]
 		}
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := graph.ParseGraphLenient(dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		if len(res.Errors) > 0 {
+			return fmt.Errorf("Error parsing graph (%d error(s)):\n%w", len(res.Errors), res.CombinedError())
+		}
+		guides := res.Guides
 
 		config, err := graph.ParseConfig(dir)
 		if err != nil {

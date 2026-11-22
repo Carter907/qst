@@ -37,7 +37,7 @@ qst inspect "Scanf Function" -d examples/C_programming -c`,
 }
 
 func runInspect(cmd *cobra.Command, guideName string, dir string, showCoverage bool) error {
-	guide, _, err := resolveGuide(dir, guideName)
+	guide, _, err := resolveGuide(cmd, dir, guideName)
 	if err != nil {
 		return fmt.Errorf("Error: guide '%s' not found or failed to parse: %w", guideName, err)
 	}

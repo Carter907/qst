@@ -56,11 +56,17 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 			targetGuideName = resolveGuideAndDir(cmd, args[0], &pathDir)
 		}
 
-		guides, err := graph.ParseGraph(pathDir)
+		res, err := loadGraphLenient(cmd, pathDir)
 		if err != nil {
 			return fmt.Errorf("failed to parse guides: %w", err)
 		}
+		guides := res.Guides
 		if len(guides) == 0 {
+			if targetGuideName != "" {
+				if pe := res.ErrorForID(targetGuideName); pe != nil {
+					return fmt.Errorf("target guide '%s' failed to parse: %w", targetGuideName, pe.Err)
+				}
+			}
 			return fmt.Errorf("no guides found in directory: %s", pathDir)
 		}
 
@@ -80,7 +86,7 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 			if targetGuideName == "" {
 				return fmt.Errorf("a target guide name is required when using --subsequent")
 			}
-			resolved, _, err := resolveGuide(pathDir, targetGuideName)
+			resolved, err := lookupGuide(res, targetGuideName)
 			if err != nil {
 				return fmt.Errorf("target guide '%s' not found: %w", targetGuideName, err)
 			}
@@ -89,7 +95,7 @@ qst path "Chapter 2 C Fundamentals" -d examples/C_programming --save-tour "Chapt
 				return fmt.Errorf("failed to compute subsequent path: %w", err)
 			}
 		} else if targetGuideName != "" {
-			resolved, _, err := resolveGuide(pathDir, targetGuideName)
+			resolved, err := lookupGuide(res, targetGuideName)
 			if err != nil {
 				return fmt.Errorf("target guide '%s' not found: %w", targetGuideName, err)
 			}

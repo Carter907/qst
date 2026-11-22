@@ -37,14 +37,15 @@ qst rm "Old Concept"`,
 		dir := deleteDir
 		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
-		targetGuide, exists := guides[guideName]
-		if !exists {
-			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
+		targetGuide, err := lookupGuide(res, guideName)
+		if err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		if deleteDryRun {

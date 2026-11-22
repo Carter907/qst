@@ -40,7 +40,7 @@ qst unlink "Variables and Assignment" -i`,
 		prereq := cleanGuideName(unlinkPrereq)
 		subguide := cleanGuideName(unlinkSubguide)
 
-		currentGuide, _, err := resolveGuide(dir, guideName)
+		currentGuide, _, err := resolveGuide(cmd, dir, guideName)
 		if err != nil {
 			return fmt.Errorf("Error: %w", err)
 		}

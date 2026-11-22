@@ -24,10 +24,11 @@ var statsCmd = &cobra.Command{
 			return fmt.Errorf("Error loading config: %w", err)
 		}
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
 		totalGuides := len(guides)
 		prereqEdges := 0

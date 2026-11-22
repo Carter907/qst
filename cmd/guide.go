@@ -51,25 +51,51 @@ func cleanGuideList(rawGuides []string) []string {
 	return result
 }
 
+// loadGraphLenient parses the knowledge graph leniently, printing a concise warning to stderr
+// if any guide files were skipped due to parse errors or duplicate IDs.
+func loadGraphLenient(cmd *cobra.Command, dir string) (graph.ParseResult, error) {
+	res, err := graph.ParseGraphLenient(dir)
+	if err != nil {
+		return graph.ParseResult{}, err
+	}
+	if len(res.Errors) > 0 && cmd != nil {
+		cmd.PrintErrf("warning: skipped %d invalid guide(s); run 'qst validate' for details\n", len(res.Errors))
+	}
+	return res, nil
+}
+
+// lookupGuide resolves a guide ID from a ParseResult, returning the file's specific parse or
+// duplicate error if that ID failed to parse instead of a generic "not found" error.
+func lookupGuide(res graph.ParseResult, guideID string) (graph.Guide, error) {
+	if pe := res.ErrorForID(guideID); pe != nil {
+		return graph.Guide{}, pe.Err
+	}
+	g, exists := res.Guides[guideID]
+	if !exists {
+		return graph.Guide{}, fmt.Errorf("guide '%s' not found in graph", guideID)
+	}
+	return g, nil
+}
+
 // resolveGuide finds a guide by name or relative path in the specified graph directory,
 // searching recursively so nested subdirectories are supported transparently.
-func resolveGuide(dir string, rawGuide string) (graph.Guide, map[string]graph.Guide, error) {
+func resolveGuide(cmd *cobra.Command, dir string, rawGuide string) (graph.Guide, map[string]graph.Guide, error) {
 	cleanName := cleanGuideName(rawGuide)
 	if cleanName == "" {
 		return graph.Guide{}, nil, fmt.Errorf("guide name cannot be empty")
 	}
 
-	guides, err := graph.ParseGraph(dir)
+	res, err := loadGraphLenient(cmd, dir)
 	if err != nil {
 		return graph.Guide{}, nil, fmt.Errorf("error parsing graph: %w", err)
 	}
 
-	targetGuide, exists := guides[cleanName]
-	if !exists {
-		return graph.Guide{}, guides, fmt.Errorf("guide '%s' not found in graph", cleanName)
+	targetGuide, err := lookupGuide(res, cleanName)
+	if err != nil {
+		return graph.Guide{}, res.Guides, err
 	}
 
-	return targetGuide, guides, nil
+	return targetGuide, res.Guides, nil
 }
 
 // parseCSVOrSlice normalizes an array of string arguments, splitting comma-separated tokens

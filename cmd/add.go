@@ -78,15 +78,20 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			return fmt.Errorf("Error: invalid scope '%s'. Valid scopes are: %v", scope, config.Scopes)
 		}
 
+		var parseRes graph.ParseResult
 		var guides map[string]graph.Guide
 		if len(prereqs) > 0 || len(subguides) > 0 {
-			guides, err = graph.ParseGraph(dir)
+			parseRes, err = loadGraphLenient(cmd, dir)
 			if err != nil {
 				return fmt.Errorf("Error parsing graph: %w", err)
 			}
+			guides = parseRes.Guides
 		}
 
 		for _, prereq := range prereqs {
+			if pe := parseRes.ErrorForID(prereq); pe != nil {
+				return fmt.Errorf("Error: %w", pe.Err)
+			}
 			p, exists := guides[prereq]
 			if !exists {
 				return fmt.Errorf("Error: prerequisite '%s' does not exist in graph", prereq)
@@ -128,6 +133,9 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			}
 
 			for _, sub := range subguides {
+				if pe := parseRes.ErrorForID(sub); pe != nil {
+					return fmt.Errorf("Error: %w", pe.Err)
+				}
 				if valErr := graph.ValidateSubGuideLink(guides, config, name, sub, adherence, segment); valErr != nil {
 					return fmt.Errorf("Error: %w", valErr)
 				}

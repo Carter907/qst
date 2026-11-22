@@ -50,14 +50,15 @@ qst link "Variables and Assignment" -i`,
 		dir := linkDir
 		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
-		currentGuide, exists := guides[guideName]
-		if !exists {
-			return fmt.Errorf("Error: guide '%s' not found in graph", guideName)
+		currentGuide, err := lookupGuide(res, guideName)
+		if err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		config, err := graph.ParseConfig(dir)
@@ -98,6 +99,9 @@ qst link "Variables and Assignment" -i`,
 				return fmt.Errorf("Error: no prerequisite specified")
 			}
 			for _, prereq := range parsedPrereqs {
+				if pe := res.ErrorForID(prereq); pe != nil {
+					return fmt.Errorf("Error: %w", pe.Err)
+				}
 				if err := graph.ValidatePrerequisiteLink(guides, config, guideName, prereq); err != nil {
 					return fmt.Errorf("Error: %w", err)
 				}
@@ -123,6 +127,9 @@ qst link "Variables and Assignment" -i`,
 			}
 
 			for _, sub := range parsedSubguides {
+				if pe := res.ErrorForID(sub); pe != nil {
+					return fmt.Errorf("Error: %w", pe.Err)
+				}
 				if err := graph.ValidateSubGuideLink(guides, config, guideName, sub, adherence, segment); err != nil {
 					return fmt.Errorf("Error: %w", err)
 				}

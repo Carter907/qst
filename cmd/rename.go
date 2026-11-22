@@ -24,6 +24,10 @@ qst rename my_graph/Old\ Name.md "New Name"`,
 		oldName := resolveGuideAndDir(cmd, args[0], &dir)
 		newName := cleanGuideName(args[1])
 
+		if _, err := loadGraphLenient(cmd, dir); err != nil {
+			return fmt.Errorf("Error parsing graph: %w", err)
+		}
+
 		updatedCount, err := graph.RenameGuide(dir, oldName, newName)
 		if err != nil {
 			return fmt.Errorf("Error: %w", err)

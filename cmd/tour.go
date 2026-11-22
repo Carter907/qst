@@ -100,14 +100,14 @@ qst tour add "Core Fundamentals" my_graph/Concept\ A.md`,
 		}
 		guideNames := cleanGuideList(rawGuides)
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
 		for _, gName := range guideNames {
-			if _, exists := guides[gName]; !exists {
-				return fmt.Errorf("Error: guide '%s' not found in graph", gName)
+			if _, err := lookupGuide(res, gName); err != nil {
+				return fmt.Errorf("Error: %w", err)
 			}
 		}
 

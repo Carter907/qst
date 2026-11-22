@@ -6,7 +6,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/Carter907/qst/internal/graph"
 	"github.com/spf13/cobra"
 )
 
@@ -26,10 +25,11 @@ var listCmd = &cobra.Command{
 		if len(args) > 0 {
 			targetDir = args[0]
 		}
-		guides, err := graph.ParseGraph(targetDir)
+		res, err := loadGraphLenient(cmd, targetDir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
 		hasScopeFilter := cmd.Flags().Changed("scope") && listScope != ""
 		hasTagsFilter := cmd.Flags().Changed("tags") && len(listTags) > 0

@@ -26,10 +26,11 @@ qst tag list
 qst tag list -d examples/C_programming`,
 	Args: cobra.NoArgs,
 	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
-		guides, err := graph.ParseGraph(tagDir)
+		res, err := loadGraphLenient(cmd, tagDir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
+		guides := res.Guides
 
 		tagCounts := make(map[string]int)
 		for _, g := range guides {
@@ -72,14 +73,14 @@ qst tag add examples/C_programming/Printf\ Function.md "io"`,
 		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 		tags := args[1:]
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
-		guide, exists := guides[guideName]
-		if !exists {
-			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
+		guide, err := lookupGuide(res, guideName)
+		if err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 		targetPath := guide.Path
 
@@ -112,14 +113,14 @@ qst tag remove examples/C_programming/Printf\ Function.md "io"`,
 		guideName := resolveGuideAndDir(cmd, args[0], &dir)
 		tags := args[1:]
 
-		guides, err := graph.ParseGraph(dir)
+		res, err := loadGraphLenient(cmd, dir)
 		if err != nil {
 			return fmt.Errorf("Error parsing graph: %w", err)
 		}
 
-		guide, exists := guides[guideName]
-		if !exists {
-			return fmt.Errorf("Error: guide '%s' does not exist in graph", guideName)
+		guide, err := lookupGuide(res, guideName)
+		if err != nil {
+			return fmt.Errorf("Error: %w", err)
 		}
 
 		tagList := parseCSVOrSlice(tags)
