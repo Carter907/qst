@@ -35,10 +35,15 @@ qst view . > graph.md`,
 		targetGuide := viewGuide
 		if len(args) > 0 {
 			dir = args[0]
-		} else if targetGuide != "" {
-			guideDir := filepath.Dir(targetGuide)
-			if guideDir != "." && guideDir != "" {
-				dir = guideDir
+		} else {
+			startDir := "."
+			if targetGuide != "" {
+				if guideDir := filepath.Dir(targetGuide); guideDir != "." && guideDir != "" {
+					startDir = guideDir
+				}
+			}
+			if root, ok := findGraphRoot(startDir); ok {
+				dir = root
 			}
 		}
 		if targetGuide != "" {

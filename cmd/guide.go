@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -23,16 +24,56 @@ func cleanGuideName(raw string) string {
 	return base
 }
 
+// hasManifest reports whether dir contains a manifest.yaml or quest.yaml file.
+func hasManifest(dir string) bool {
+	for _, name := range []string{"manifest.yaml", "quest.yaml"} {
+		if info, err := os.Stat(filepath.Join(dir, name)); err == nil && !info.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+// findGraphRoot walks upward from startDir looking for a directory containing
+// manifest.yaml or quest.yaml. If the discovered root matches the current working
+// directory, it returns "." to keep relative output paths clean.
+func findGraphRoot(startDir string) (string, bool) {
+	absStart, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", false
+	}
+	cwd, cwdErr := os.Getwd()
+
+	cur := absStart
+	for {
+		if hasManifest(cur) {
+			if cwdErr == nil && cur == cwd {
+				return ".", true
+			}
+			return cur, true
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			return "", false
+		}
+		cur = parent
+	}
+}
+
 // resolveGuideAndDir extracts the guide name, and if the "dir" flag was not explicitly
-// changed on cmd and raw contains directory components, updates *currentDir with the directory path.
+// changed on cmd, discovers the knowledge graph root by walking upward from the guide
+// path's directory (or "." for bare guide names) to the nearest manifest.yaml / quest.yaml.
 func resolveGuideAndDir(cmd *cobra.Command, rawGuide string, currentDir *string) string {
 	cleanName := cleanGuideName(rawGuide)
 	if cmd != nil && currentDir != nil {
 		dirFlag := cmd.Flags().Lookup("dir")
 		if dirFlag == nil || !dirFlag.Changed {
-			dir := filepath.Dir(rawGuide)
-			if dir != "." && dir != "" {
-				*currentDir = dir
+			startDir := filepath.Dir(rawGuide)
+			if startDir == "" {
+				startDir = "."
+			}
+			if root, ok := findGraphRoot(startDir); ok {
+				*currentDir = root
 			}
 		}
 	}

@@ -197,3 +197,69 @@ func TestLinkLenientWithInvalidGuides(t *testing.T) {
 		}
 	}
 }
+
+func TestNestedSubdirectoryGraphRootResolution(t *testing.T) {
+	dir := setupTestGraph(t)
+
+	// Create nested subdirectories inside the graph root
+	sub1 := filepath.Join(dir, "ch1")
+	sub2 := filepath.Join(dir, "ch2")
+	if err := os.MkdirAll(sub1, 0o755); err != nil {
+		t.Fatalf("failed to create ch1: %v", err)
+	}
+	if err := os.MkdirAll(sub2, 0o755); err != nil {
+		t.Fatalf("failed to create ch2: %v", err)
+	}
+
+	g1 := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n\n## Nested 1\n"
+	g2 := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n\n## Nested 2\n"
+	if err := os.WriteFile(filepath.Join(sub1, "Nested 1.md"), []byte(g1), 0o644); err != nil {
+		t.Fatalf("failed to write Nested 1: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sub2, "Nested 2.md"), []byte(g2), 0o644); err != nil {
+		t.Fatalf("failed to write Nested 2: %v", err)
+	}
+
+	// 1. From outside the graph, passing a nested guide path walks up to graph root
+	res := executeCommandContext(nil, "link", filepath.Join(sub1, "Nested 1.md"), "--prereq", filepath.Join(sub2, "Nested 2.md"))
+	if res.ExitCode != 0 || res.Err != nil {
+		t.Fatalf("link from outside with nested paths failed: code=%d err=%v out=%s", res.ExitCode, res.Err, res.Combined)
+	}
+
+	// 2. From the graph root, passing relative subdir paths resolves graph root to "."
+	t.Run("from graph root", func(t *testing.T) {
+		t.Chdir(dir)
+
+		res := executeCommandContext(nil, "unlink", "ch1/Nested 1", "--prereq", "ch2/Nested 2")
+		if res.ExitCode != 0 || res.Err != nil {
+			t.Fatalf("unlink from graph root with subdir paths failed: code=%d err=%v out=%s", res.ExitCode, res.Err, res.Combined)
+		}
+
+		res = executeCommandContext(nil, "link", "ch1/Nested 1", "--prereq", "ch2/Nested 2")
+		if res.ExitCode != 0 || res.Err != nil {
+			t.Fatalf("link from graph root with subdir paths failed: code=%d err=%v out=%s", res.ExitCode, res.Err, res.Combined)
+		}
+
+		// qst add with a subdir path preserves the subdir while using graph root manifest
+		res = executeCommandContext(nil, "add", "ch3/Nested 3", "--scope", "definition", "--prerequisites", "ch1/Nested 1")
+		if res.ExitCode != 0 || res.Err != nil {
+			t.Fatalf("add with subdir path failed: code=%d err=%v out=%s", res.ExitCode, res.Err, res.Combined)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "ch3", "Nested 3.md")); err != nil {
+			t.Fatalf("expected ch3/Nested 3.md to be created, got: %v", err)
+		}
+	})
+
+	// 3. From inside a nested subdirectory, bare guide names walk up to graph root
+	t.Run("from nested subdir", func(t *testing.T) {
+		t.Chdir(sub1)
+
+		res := executeCommandContext(nil, "inspect", "Nested 2")
+		if res.ExitCode != 0 || res.Err != nil {
+			t.Fatalf("inspect from nested subdir failed: code=%d err=%v out=%s", res.ExitCode, res.Err, res.Combined)
+		}
+		if !strings.Contains(res.Stdout, "Guide: Nested 2") {
+			t.Errorf("expected inspect output for Nested 2, got:\n%s", res.Stdout)
+		}
+	})
+}

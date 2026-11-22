@@ -40,13 +40,21 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 	Args: cobra.ExactArgs(1),
 	Run: runWithExit(func(cmd *cobra.Command, args []string) error {
 		dir := addDir
-		name := resolveGuideAndDir(cmd, args[0], &dir)
+		rawTarget := args[0]
+		name := resolveGuideAndDir(cmd, rawTarget, &dir)
 
 		if addInPlace && (!cmd.Flags().Changed("file") || addFile == "") {
 			return fmt.Errorf("Error: --in-place requires --file")
 		}
 
 		filename := filepath.Join(dir, name+".md")
+		if rawDir := filepath.Dir(rawTarget); rawDir != "." && rawDir != "" {
+			if filepath.IsAbs(rawDir) || !cmd.Flags().Changed("dir") {
+				filename = filepath.Join(rawDir, name+".md")
+			} else {
+				filename = filepath.Join(dir, rawDir, name+".md")
+			}
+		}
 
 		if addInPlace {
 			filename = addFile
@@ -152,6 +160,14 @@ qst add "Memory Layout" --dir my_graph/ --scope explanation --body "## Memory La
 			SubGuides:     subRelations,
 			Scope:         scope,
 			Tags:          tags,
+		}
+
+		if !addInPlace {
+			if fileDir := filepath.Dir(filename); fileDir != "." && fileDir != "" && fileDir != dir {
+				if err := os.MkdirAll(fileDir, 0o755); err != nil {
+					return fmt.Errorf("Failed to create directory %s: %w", fileDir, err)
+				}
+			}
 		}
 
 		if err := graph.CreateGuide(filename, meta, body); err != nil {

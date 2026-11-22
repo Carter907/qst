@@ -90,12 +90,16 @@ qst tour add "Core Fundamentals" my_graph/Concept\ A.md`,
 
 		dirFlag := cmd.Flags().Lookup("dir")
 		if dirFlag == nil || !dirFlag.Changed {
+			startDir := "."
 			for _, g := range rawGuides {
 				gDir := filepath.Dir(g)
 				if gDir != "." && gDir != "" {
-					dir = gDir
+					startDir = gDir
 					break
 				}
+			}
+			if root, ok := findGraphRoot(startDir); ok {
+				dir = root
 			}
 		}
 		guideNames := cleanGuideList(rawGuides)
