@@ -275,11 +275,16 @@ func collectAffectedGuides(idx *GraphIndex, targetID string) []string {
 // DeleteGuide removes a guide and prunes all incoming references across prerequisites, subguides, and manifest tours.
 // It returns the total number of references pruned from other guides and tours.
 func DeleteGuide(dirPath string, guideID string) (int, error) {
-	guides, err := ParseGraph(dirPath)
+	res, err := ParseGraphLenient(dirPath)
 	if err != nil {
 		return 0, fmt.Errorf("error parsing graph: %w", err)
 	}
 
+	if pe := res.ErrorForID(guideID); pe != nil {
+		return 0, pe.Err
+	}
+
+	guides := res.Guides
 	targetGuide, exists := guides[guideID]
 	if !exists {
 		return 0, fmt.Errorf("guide '%s' does not exist in graph", guideID)
@@ -368,11 +373,19 @@ func DeleteGuide(dirPath string, guideID string) (int, error) {
 // subguides, and manifest tours. It also renames the guide markdown file on disk.
 // It returns the total number of references updated, or an error.
 func RenameGuide(dirPath string, oldID string, newID string) (int, error) {
-	guides, err := ParseGraph(dirPath)
+	res, err := ParseGraphLenient(dirPath)
 	if err != nil {
 		return 0, fmt.Errorf("error parsing graph: %w", err)
 	}
 
+	if pe := res.ErrorForID(oldID); pe != nil {
+		return 0, pe.Err
+	}
+	if pe := res.ErrorForID(newID); pe != nil {
+		return 0, pe.Err
+	}
+
+	guides := res.Guides
 	targetGuide, exists := guides[oldID]
 	if !exists {
 		return 0, fmt.Errorf("guide '%s' does not exist in graph", oldID)

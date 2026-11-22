@@ -181,3 +181,62 @@ No frontmatter at all.
 		}
 	})
 }
+
+func TestParseGraphLenient(t *testing.T) {
+	graphDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(graphDir, "dirA"), 0755)
+	_ = os.MkdirAll(filepath.Join(graphDir, "dirB"), 0755)
+
+	valid := "---\nscope: definition\nprerequisites: []\nsub_guides: []\ntags: []\n---\n# Valid\n"
+	badYAML := "---\nscope: [unterminated\n---\n# Bad YAML\n"
+	noFM := "# Plain draft without frontmatter\n"
+
+	_ = os.WriteFile(filepath.Join(graphDir, "ValidGuide.md"), []byte(valid), 0644)
+	_ = os.WriteFile(filepath.Join(graphDir, "BadYAML.md"), []byte(badYAML), 0644)
+	_ = os.WriteFile(filepath.Join(graphDir, "DraftNoFM.md"), []byte(noFM), 0644)
+	_ = os.WriteFile(filepath.Join(graphDir, "dirA", "DupGuide.md"), []byte(valid), 0644)
+	_ = os.WriteFile(filepath.Join(graphDir, "dirB", "DupGuide.md"), []byte(valid), 0644)
+
+	res, err := ParseGraphLenient(graphDir)
+	if err != nil {
+		t.Fatalf("ParseGraphLenient() unexpected fatal error: %v", err)
+	}
+
+	if len(res.Guides) != 1 {
+		t.Fatalf("expected 1 valid non-duplicate guide, got %d: %v", len(res.Guides), res.Guides)
+	}
+	if _, ok := res.Guides["ValidGuide"]; !ok {
+		t.Errorf("expected 'ValidGuide' in res.Guides")
+	}
+	if _, ok := res.Guides["DupGuide"]; ok {
+		t.Errorf("expected duplicated 'DupGuide' to be excluded from res.Guides")
+	}
+
+	if len(res.Errors) != 3 {
+		t.Fatalf("expected 3 collected parse errors, got %d: %v", len(res.Errors), res.Errors)
+	}
+
+	if res.ErrorForID("ValidGuide") != nil {
+		t.Errorf("expected nil ErrorForID for ValidGuide")
+	}
+	if pe := res.ErrorForID("BadYAML"); pe == nil || !strings.Contains(pe.Error(), "failed to parse yaml") {
+		t.Errorf("expected YAML parse error for BadYAML, got: %v", pe)
+	}
+	if pe := res.ErrorForID("DraftNoFM"); pe == nil || !strings.Contains(pe.Error(), "invalid or missing YAML frontmatter") {
+		t.Errorf("expected frontmatter error for DraftNoFM, got: %v", pe)
+	}
+	if pe := res.ErrorForID("DupGuide"); pe == nil || !strings.Contains(pe.Error(), "duplicate guide ID 'DupGuide'") {
+		t.Errorf("expected duplicate ID error for DupGuide, got: %v", pe)
+	}
+
+	// Strict ParseGraph should fail with all 3 errors joined
+	_, strictErr := ParseGraph(graphDir)
+	if strictErr == nil {
+		t.Fatal("expected strict ParseGraph to fail")
+	}
+	for _, want := range []string{"BadYAML.md", "DraftNoFM.md", "duplicate guide ID 'DupGuide'"} {
+		if !strings.Contains(strictErr.Error(), want) {
+			t.Errorf("expected strict ParseGraph error to contain %q, got:\n%v", want, strictErr)
+		}
+	}
+}
